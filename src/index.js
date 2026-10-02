@@ -1,6 +1,7 @@
 import { json, fail } from './util.js';
 import { handleDashboardApi } from './dashboard.js';
 import { handlePublicApi, handleVerify, handleImage } from './public-api.js';
+import { handleTestEmail } from './test-email.js';
 
 export default {
   async fetch(request, env) {
@@ -25,6 +26,10 @@ export default {
 
       if (url.pathname.startsWith('/img/') && request.method === 'GET') {
         return await handleImage(request, env, url);
+      }
+
+      if (url.pathname === '/api/test-email') {
+        return await handleTestEmail(request, env, url);
       }
 
       if (url.pathname.startsWith('/api/v1/')) {

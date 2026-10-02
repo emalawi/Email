@@ -5,6 +5,7 @@ const enc = new TextEncoder();
 const TOKEN_MINUTES = 15;
 const MAX_PER_EMAIL_HOUR = 3;
 const MAX_PER_PROJECT_HOUR = 100;
+const MAX_TESTS_PER_PROJECT_HOUR = 10;
 let cachedToken = null;
 
 function b64Utf8(text) {
@@ -16,6 +17,11 @@ function b64Utf8(text) {
 
 function toBase64Url(b64) {
   return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function pickReplyTo(address) {
+  const value = String(address || '').trim();
+  return /^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$/.test(value) ? value : '';
 }
 
 async function getAccessToken(env) {
@@ -41,11 +47,14 @@ async function getAccessToken(env) {
   return cachedToken.value;
 }
 
-async function sendGmail(env, to, subject, html, fromName) {
+async function sendGmail(env, to, subject, html, fromName, replyTo) {
   const accessToken = await getAccessToken(env);
   const lines = [];
   if (env.SENDER_EMAIL) {
     lines.push(`From: =?utf-8?B?${b64Utf8(fromName)}?= <${env.SENDER_EMAIL}>`);
+  }
+  if (replyTo) {
+    lines.push(`Reply-To: ${replyTo}`);
   }
   lines.push(
     `To: ${to}`,
@@ -77,10 +86,94 @@ async function projectFromKey(request, env) {
   if (!/^sb_live_[0-9a-f]{48}$/.test(key)) return null;
   const hash = await sha256Hex(key);
   return await env.DB.prepare(
-    'SELECT p.id, p.name, p.website FROM api_keys k JOIN projects p ON p.id = k.project_id WHERE k.key_hash = ? AND k.active = 1'
+    `SELECT p.id, p.name, p.website, u.email AS owner_email
+     FROM api_keys k
+     JOIN projects p ON p.id = k.project_id
+     JOIN users u ON u.id = p.user_id
+     WHERE k.key_hash = ? AND k.active = 1`
   )
     .bind(hash)
     .first();
+}
+
+export async function issueVerification(env, url, project, opts) {
+  const { email, name, redirectUrl, isTest } = opts;
+  const now = new Date();
+  const hourAgo = new Date(now.getTime() - 3600000).toISOString();
+  const dayAgo = new Date(now.getTime() - 86400000).toISOString();
+
+  await env.DB.prepare('DELETE FROM verification_tokens WHERE created_at < ?').bind(dayAgo).run();
+
+  const perEmail = await env.DB.prepare(
+    'SELECT COUNT(*) AS n FROM verification_tokens WHERE project_id = ? AND email = ? AND created_at > ?'
+  )
+    .bind(project.id, email, hourAgo)
+    .first();
+  if (perEmail.n >= MAX_PER_EMAIL_HOUR) {
+    return { ok: false, status: 429, message: 'Too many emails sent to this address. Try again later.' };
+  }
+  const perProject = await env.DB.prepare(
+    'SELECT COUNT(*) AS n FROM verification_tokens WHERE project_id = ? AND created_at > ?'
+  )
+    .bind(project.id, hourAgo)
+    .first();
+  if (perProject.n >= MAX_PER_PROJECT_HOUR) {
+    return { ok: false, status: 429, message: 'Hourly sending limit reached for this project.' };
+  }
+  if (isTest) {
+    const tests = await env.DB.prepare(
+      'SELECT COUNT(*) AS n FROM verification_tokens WHERE project_id = ? AND is_test = 1 AND created_at > ?'
+    )
+      .bind(project.id, hourAgo)
+      .first();
+    if (tests.n >= MAX_TESTS_PER_PROJECT_HOUR) {
+      return { ok: false, status: 429, message: 'Test limit reached. Try again in an hour.' };
+    }
+  }
+
+  const token = randomHex(32);
+  const tokenHash = await sha256Hex(token);
+  const expiresAt = new Date(now.getTime() + TOKEN_MINUTES * 60000).toISOString();
+  await env.DB.prepare(
+    'INSERT INTO verification_tokens (token_hash, project_id, email, name, created_at, expires_at, redirect_url, is_test) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  )
+    .bind(tokenHash, project.id, email, name, now.toISOString(), expiresAt, redirectUrl || '', isTest ? 1 : 0)
+    .run();
+
+  const row = await env.DB.prepare(
+    'SELECT design, updated_at FROM email_templates WHERE project_id = ?'
+  )
+    .bind(project.id)
+    .first();
+  let stored = null;
+  if (row && row.design) {
+    try {
+      stored = JSON.parse(row.design);
+    } catch (err) {
+      stored = null;
+    }
+  }
+  const design = sanitizeDesign(stored || { ...DEFAULT_DESIGN, companyName: project.name });
+  const version = encodeURIComponent((row && row.updated_at) || '');
+  const vars = {
+    projectName: project.name,
+    name,
+    email,
+    verificationUrl: `${url.origin}/verify/${token}`,
+    logoUrl: `${url.origin}/img/${project.id}/logo?v=${version}`,
+    headerUrl: `${url.origin}/img/${project.id}/header?v=${version}`,
+  };
+  const replyTo = pickReplyTo(design.supportEmail) || pickReplyTo(project.owner_email);
+
+  try {
+    await sendGmail(env, email, renderSubject(design, vars), renderEmail(design, vars), project.name, replyTo);
+  } catch (err) {
+    console.error(err.message);
+    await env.DB.prepare('DELETE FROM verification_tokens WHERE token_hash = ?').bind(tokenHash).run();
+    return { ok: false, status: 502, message: 'Could not send the email. Please try again later.' };
+  }
+
+  return { ok: true, expiresInMinutes: TOKEN_MINUTES };
 }
 
 async function sendVerification(request, env, url, project) {
@@ -109,74 +202,18 @@ async function sendVerification(request, env, url, project) {
     }
   }
 
-  const now = new Date();
-  const hourAgo = new Date(now.getTime() - 3600000).toISOString();
-  const dayAgo = new Date(now.getTime() - 86400000).toISOString();
-
-  await env.DB.prepare('DELETE FROM verification_tokens WHERE created_at < ?').bind(dayAgo).run();
-
-  const perEmail = await env.DB.prepare(
-    'SELECT COUNT(*) AS n FROM verification_tokens WHERE project_id = ? AND email = ? AND created_at > ?'
-  )
-    .bind(project.id, email, hourAgo)
-    .first();
-  if (perEmail.n >= MAX_PER_EMAIL_HOUR) {
-    return fail('Too many emails sent to this address. Try again later.', 429);
-  }
-  const perProject = await env.DB.prepare(
-    'SELECT COUNT(*) AS n FROM verification_tokens WHERE project_id = ? AND created_at > ?'
-  )
-    .bind(project.id, hourAgo)
-    .first();
-  if (perProject.n >= MAX_PER_PROJECT_HOUR) {
-    return fail('Hourly sending limit reached for this project.', 429);
-  }
-
-  const token = randomHex(32);
-  const tokenHash = await sha256Hex(token);
-  const expiresAt = new Date(now.getTime() + TOKEN_MINUTES * 60000).toISOString();
-  await env.DB.prepare(
-    'INSERT INTO verification_tokens (token_hash, project_id, email, name, created_at, expires_at, redirect_url) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  )
-    .bind(tokenHash, project.id, email, name, now.toISOString(), expiresAt, redirectUrl)
-    .run();
-
-  const row = await env.DB.prepare(
-    'SELECT design, updated_at FROM email_templates WHERE project_id = ?'
-  )
-    .bind(project.id)
-    .first();
-  let stored = null;
-  if (row && row.design) {
-    try {
-      stored = JSON.parse(row.design);
-    } catch (err) {
-      stored = null;
-    }
-  }
-  const design = sanitizeDesign(stored || { ...DEFAULT_DESIGN, companyName: project.name });
-  const version = encodeURIComponent((row && row.updated_at) || '');
-  const vars = {
-    projectName: project.name,
-    name,
+  const result = await issueVerification(env, url, project, {
     email,
-    verificationUrl: `${url.origin}/verify/${token}`,
-    logoUrl: `${url.origin}/img/${project.id}/logo?v=${version}`,
-    headerUrl: `${url.origin}/img/${project.id}/header?v=${version}`,
-  };
-
-  try {
-    await sendGmail(env, email, renderSubject(design, vars), renderEmail(design, vars), project.name);
-  } catch (err) {
-    console.error(err.message);
-    await env.DB.prepare('DELETE FROM verification_tokens WHERE token_hash = ?').bind(tokenHash).run();
-    return fail('Could not send the email. Please try again later.', 502);
-  }
+    name,
+    redirectUrl,
+    isTest: false,
+  });
+  if (!result.ok) return fail(result.message, result.status);
 
   return json({
     success: true,
     message: 'Verification email sent.',
-    expires_in_minutes: TOKEN_MINUTES,
+    expires_in_minutes: result.expiresInMinutes,
   });
 }
 
@@ -209,8 +246,11 @@ export async function handlePublicApi(request, env, url) {
   return fail('Not found.', 404);
 }
 
-function page(title, message, status = 200) {
-  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title></head><body style="margin:0;font-family:Arial,sans-serif;background:#f4f7fb;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px;box-sizing:border-box"><div style="max-width:480px;background:#fff;border-radius:16px;padding:36px;text-align:center;box-shadow:0 8px 35px rgba(0,0,0,.08)"><h1 style="margin:0 0 12px;color:#111827">${escapeHtml(title)}</h1><p style="margin:0;color:#4b5563;line-height:1.6">${escapeHtml(message)}</p></div></body></html>`;
+function page(title, message, status = 200, linkUrl = '') {
+  const link = linkUrl
+    ? `<p style="margin:22px 0 0"><a href="${escapeHtml(linkUrl)}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 22px;border-radius:9px;font-weight:700">Open website</a></p>`
+    : '';
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title></head><body style="margin:0;font-family:Arial,sans-serif;background:#f4f7fb;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px;box-sizing:border-box"><div style="max-width:480px;background:#fff;border-radius:16px;padding:36px;text-align:center;box-shadow:0 8px 35px rgba(0,0,0,.08)"><h1 style="margin:0 0 12px;color:#111827">${escapeHtml(title)}</h1><p style="margin:0;color:#4b5563;line-height:1.6">${escapeHtml(message)}</p>${link}</div></body></html>`;
   return new Response(html, {
     status,
     headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
@@ -225,7 +265,7 @@ export async function handleVerify(request, env, url) {
 
   const tokenHash = await sha256Hex(token);
   const row = await env.DB.prepare(
-    `SELECT t.email, t.expires_at, t.redirect_url, t.project_id, p.name AS project_name, p.website
+    `SELECT t.email, t.expires_at, t.redirect_url, t.project_id, t.is_test, p.name AS project_name, p.website
      FROM verification_tokens t JOIN projects p ON p.id = t.project_id
      WHERE t.token_hash = ?`
   )
@@ -233,14 +273,28 @@ export async function handleVerify(request, env, url) {
     .first();
   if (!row || new Date(row.expires_at) <= new Date()) return invalid();
 
+  const burn = env.DB.prepare(
+    'UPDATE verification_tokens SET expires_at = ? WHERE token_hash = ?'
+  ).bind('1970-01-01T00:00:00.000Z', tokenHash);
+
+  if (row.is_test) {
+    await burn.run();
+    return page(
+      'Test successful',
+      row.website
+        ? `This was a test, so ${row.email} was not marked as verified. In production your user would be redirected to ${row.website} and counted as verified.`
+        : `This was a test, so ${row.email} was not marked as verified. Add a website URL to your project and your users will be redirected there after verifying.`,
+      200,
+      row.website
+    );
+  }
+
   const now = new Date().toISOString();
   await env.DB.batch([
     env.DB.prepare(
       'INSERT OR REPLACE INTO verified_emails (project_id, email, verified_at) VALUES (?, ?, ?)'
     ).bind(row.project_id, row.email, now),
-    env.DB.prepare(
-      'UPDATE verification_tokens SET expires_at = ? WHERE token_hash = ?'
-    ).bind('1970-01-01T00:00:00.000Z', tokenHash),
+    burn,
   ]);
 
   const target = row.redirect_url || row.website;

@@ -933,3 +933,105 @@ async function rotateApiKey() {
     toast(err.message);
   }
 }
+
+/* Smartbase test view */
+(function () {
+  viewLabels.test = "Send test";
+
+  const designerNav = document.querySelector('.nav-item[data-view="designer"]');
+  const designerSection = document.querySelector('.view[data-section="designer"]');
+  if (!designerNav || !designerSection) return;
+
+  const navButton = document.createElement("button");
+  navButton.type = "button";
+  navButton.className = "nav-item";
+  navButton.dataset.view = "test";
+  navButton.innerHTML = '<span class="nav-icon">✉</span>Send test';
+  designerNav.insertAdjacentElement("afterend", navButton);
+  navButton.addEventListener("click", () => navigate("test"));
+
+  const section = document.createElement("section");
+  section.className = "view";
+  section.dataset.section = "test";
+  section.innerHTML = `
+    <div class="page-heading">
+      <div>
+        <span class="eyebrow">Email design</span>
+        <h1>Send a test</h1>
+        <p>Send your saved design to any address and walk through the real verification flow.</p>
+      </div>
+    </div>
+    <article class="surface create-project-card" style="max-width:640px">
+      <div class="surface-head">
+        <div><span class="mini-label">Saved design for</span><h2 id="testProjectName">No project selected</h2></div>
+      </div>
+      <form id="testForm">
+        <label>Send test to
+          <input id="testEmail" type="email" placeholder="you@example.com" required>
+        </label>
+        <label>Recipient name (optional)
+          <input id="testName" type="text" placeholder="Test User">
+        </label>
+        <button class="primary" id="testSend" type="submit">Send test email</button>
+      </form>
+      <p class="form-helper">Tests use your last saved design, so tap "Save design" first if you changed something. Clicking the button in a test email shows a success page and does not mark the address as verified.</p>
+      <div id="testResult"></div>
+    </article>`;
+  designerSection.insertAdjacentElement("afterend", section);
+
+  const toolbar = document.querySelector(".toolbar-actions");
+  if (toolbar) {
+    const shortcut = document.createElement("button");
+    shortcut.type = "button";
+    shortcut.className = "toolbar-button";
+    shortcut.textContent = "Send test";
+    shortcut.addEventListener("click", () => navigate("test"));
+    toolbar.insertBefore(shortcut, toolbar.querySelector(".primary"));
+  }
+
+  function refreshTestView() {
+    $("testProjectName").textContent = currentProject ? currentProject.name : "No project selected";
+    $("testSend").disabled = !currentProject;
+    $("testResult").innerHTML = "";
+    if (developer && !$("testEmail").value) $("testEmail").value = developer.email || "";
+  }
+
+  const baseNavigate = navigate;
+  navigate = function (view) {
+    baseNavigate(view);
+    if (view === "test") refreshTestView();
+  };
+
+  $("testForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!currentProject) {
+      toast("Create or select a project first.");
+      return;
+    }
+    const button = $("testSend");
+    button.disabled = true;
+    button.textContent = "Sending…";
+    $("testResult").innerHTML = "";
+    try {
+      const data = await api("/api/test-email", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          projectId: currentProject.id,
+          email: $("testEmail").value,
+          name: $("testName").value
+        })
+      });
+      $("testResult").innerHTML =
+        '<div class="successBox"><strong>Test email sent.</strong><p>Open your inbox (check spam too) and tap the button. The link works for ' +
+        data.expires_in_minutes + ' minutes.</p></div>';
+      toast("Test email sent.");
+    } catch (err) {
+      $("testResult").innerHTML =
+        '<div class="security-warning"><strong>Could not send</strong><span>' + escapeHtml(err.message) + '</span></div>';
+    } finally {
+      button.disabled = false;
+      button.textContent = "Send test email";
+    }
+  });
+})();
