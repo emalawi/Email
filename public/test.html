@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Smartbase API Test</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, sans-serif; background: #f4f7fb; color: #111827; padding: 16px; }
+  .card { max-width: 520px; margin: 0 auto 16px; background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,.06); }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 0 0 12px; }
+  p.hint { color: #6b7280; font-size: 13px; margin: 4px 0 12px; line-height: 1.5; }
+  label { display: block; font-size: 13px; font-weight: 700; margin: 12px 0 4px; }
+  input { width: 100%; padding: 11px; font-size: 15px; border: 1px solid #d1d5db; border-radius: 8px; }
+  button { width: 100%; padding: 12px; margin-top: 14px; font-size: 15px; font-weight: 700; color: #fff; background: #2563eb; border: 0; border-radius: 8px; }
+  button.secondary { background: #111827; }
+  button:disabled { opacity: .6; }
+  #banner { display: none; background: #fef3c7; color: #92400e; border-radius: 10px; padding: 12px; font-size: 14px; line-height: 1.5; margin-bottom: 14px; }
+  pre { margin: 0; padding: 12px; border-radius: 8px; background: #111827; color: #e5e7eb; font-size: 13px; white-space: pre-wrap; word-break: break-word; min-height: 60px; }
+  pre.ok { border-left: 4px solid #22c55e; }
+  pre.bad { border-left: 4px solid #ef4444; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Smartbase API Test</h1>
+  <p class="hint">Testing tool. Your API key is only used for the requests below and is never saved. In a real website, call the API from your server, not from the browser.</p>
+  <div id="banner"></div>
+
+  <label for="key">Project API key</label>
+  <input id="key" type="password" placeholder="sb_live_..." autocomplete="off">
+
+  <label for="email">Send verification to (email)</label>
+  <input id="email" type="email" placeholder="someone@example.com" autocomplete="off">
+
+  <label for="name">Name (optional)</label>
+  <input id="name" type="text" placeholder="Test User" autocomplete="off">
+
+  <label for="redirect">Redirect after verifying (optional)</label>
+  <input id="redirect" type="url" placeholder="https://yourwebsite.com/welcome">
+  <p class="hint">Must be on the website URL set in your project. Leave empty to use the project website.</p>
+
+  <button id="sendBtn">1. Send verification email</button>
+  <button id="statusBtn" class="secondary">2. Check verification status</button>
+</div>
+
+<div class="card">
+  <h2>Result</h2>
+  <pre id="out">Nothing yet.</pre>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+function show(obj, ok) {
+  const out = $('out');
+  out.textContent = JSON.stringify(obj, null, 2);
+  out.className = ok ? 'ok' : 'bad';
+}
+
+async function call(path, options) {
+  try {
+    const res = await fetch(path, options);
+    const data = await res.json().catch(() => ({ error: 'Response was not JSON' }));
+    show({ http_status: res.status, ...data }, res.ok);
+    return data;
+  } catch (err) {
+    show({ error: err.message }, false);
+  }
+}
+
+function headers() {
+  return {
+    'Content-Type': 'application/json',
+    'X-Smartbase-Key': $('key').value.trim(),
+  };
+}
+
+$('sendBtn').onclick = async () => {
+  const body = {
+    email: $('email').value.trim(),
+    name: $('name').value.trim() || 'there',
+  };
+  const redirect = $('redirect').value.trim();
+  if (redirect) body.redirect_url = redirect;
+
+  $('sendBtn').disabled = true;
+  $('out').textContent = 'Sending...';
+  await call('/api/v1/send-verification', {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify(body),
+  });
+  $('sendBtn').disabled = false;
+};
+
+$('statusBtn').onclick = async () => {
+  const email = $('email').value.trim();
+  $('out').textContent = 'Checking...';
+  await call('/api/v1/status?email=' + encodeURIComponent(email), {
+    headers: headers(),
+  });
+};
+
+$('redirect').value = location.origin + '/test.html';
+
+const params = new URLSearchParams(location.search);
+if (params.get('smartbase_status') === 'verified') {
+  const email = params.get('email') || '';
+  $('email').value = email;
+  const banner = $('banner');
+  banner.style.display = 'block';
+  banner.textContent =
+    'You were redirected back with status "verified" for ' + email +
+    '. Anyone can type that in a URL, so enter your API key and tap "Check verification status" to confirm it on the server.';
+}
+</script>
+</body>
+</html>
