@@ -1,14 +1,16 @@
 import { json, fail } from './util.js';
 import { handleDashboardApi } from './dashboard.js';
 import { handlePublicApi, handleVerify, handleImage } from './public-api.js';
-import { handleTestEmail } from './test-email.js';
+import { handleTestApi } from './test-email.js';
+import { handleFlowApi } from './flow.js';
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const path = url.pathname;
 
     try {
-      if (url.pathname === '/api/health') {
+      if (path === '/api/health') {
         const row = await env.DB.prepare(
           "SELECT COUNT(*) AS tables FROM sqlite_master WHERE type = 'table' AND name NOT LIKE '_cf_%' AND name NOT LIKE 'sqlite_%'"
         ).first();
@@ -20,23 +22,22 @@ export default {
         });
       }
 
-      if (url.pathname.startsWith('/verify/') && request.method === 'GET') {
+      if (path.startsWith('/verify/') && request.method === 'GET') {
         return await handleVerify(request, env, url);
       }
-
-      if (url.pathname.startsWith('/img/') && request.method === 'GET') {
+      if (path.startsWith('/img/') && request.method === 'GET') {
         return await handleImage(request, env, url);
       }
-
-      if (url.pathname === '/api/test-email') {
-        return await handleTestEmail(request, env, url);
+      if (path === '/preview/success' || path === '/api/flow') {
+        return await handleFlowApi(request, env, url);
       }
-
-      if (url.pathname.startsWith('/api/v1/')) {
+      if (path.startsWith('/api/test-')) {
+        return await handleTestApi(request, env, url);
+      }
+      if (path.startsWith('/api/v1/')) {
         return await handlePublicApi(request, env, url);
       }
-
-      if (url.pathname.startsWith('/api/')) {
+      if (path.startsWith('/api/')) {
         return await handleDashboardApi(request, env, url);
       }
     } catch (err) {

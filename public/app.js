@@ -816,7 +816,7 @@ updateRangeLabels();
 switchAuth("signup");
 restoreSession();
 
-/* Smartbase backend overrides */
+/* Smartbase extensions */
 var revealedKeys = {};
 
 async function api(url, options = {}) {
@@ -883,15 +883,23 @@ function updateApiExample() {
   }
   const base = location.origin;
   $("apiExample").textContent =
-`# 1) Send a verification email (run on YOUR server, never in browser code)
+`# Run these on YOUR server, never in browser code.
+
+# 1) Send a verification (link or code, depending on your Verification settings)
 curl -X POST ${base}/api/v1/send-verification \\
   -H "Content-Type: application/json" \\
   -H "X-Smartbase-Key: YOUR_PROJECT_API_KEY" \\
   -d '{"email":"customer@example.com","name":"Customer"}'
 
-# 2) After the user clicks the link, confirm on YOUR server
+# 2a) LINK method: after the user taps the button, confirm it
 curl "${base}/api/v1/status?email=customer@example.com" \\
-  -H "X-Smartbase-Key: YOUR_PROJECT_API_KEY"`;
+  -H "X-Smartbase-Key: YOUR_PROJECT_API_KEY"
+
+# 2b) CODE method: check the code the user typed on your site
+curl -X POST ${base}/api/v1/verify-code \\
+  -H "Content-Type: application/json" \\
+  -H "X-Smartbase-Key: YOUR_PROJECT_API_KEY" \\
+  -d '{"email":"customer@example.com","code":"123456"}'`;
 }
 
 function updateKeyUI() {
@@ -934,50 +942,274 @@ async function rotateApiKey() {
   }
 }
 
-/* Smartbase test view */
 (function () {
-  viewLabels.test = "Send test";
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) =>
+    ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"}[c]));
+  const field = "width:100%;margin-top:7px;padding:12px 13px;border:1px solid #dfe2e7;border-radius:9px;background:#fafbfc;color:#20242a;font:inherit";
+  const jsonHeaders = {"Content-Type": "application/json"};
 
   const designerNav = document.querySelector('.nav-item[data-view="designer"]');
   const designerSection = document.querySelector('.view[data-section="designer"]');
   if (!designerNav || !designerSection) return;
 
-  const navButton = document.createElement("button");
-  navButton.type = "button";
-  navButton.className = "nav-item";
-  navButton.dataset.view = "test";
-  navButton.innerHTML = '<span class="nav-icon">✉</span>Send test';
-  designerNav.insertAdjacentElement("afterend", navButton);
-  navButton.addEventListener("click", () => navigate("test"));
+  function addView(key, label, icon, anchorNav, anchorSection, html) {
+    viewLabels[key] = label;
+    const nav = document.createElement("button");
+    nav.type = "button";
+    nav.className = "nav-item";
+    nav.dataset.view = key;
+    nav.innerHTML = '<span class="nav-icon">' + icon + "</span>" + label;
+    anchorNav.insertAdjacentElement("afterend", nav);
+    nav.addEventListener("click", () => navigate(key));
+    const section = document.createElement("section");
+    section.className = "view";
+    section.dataset.section = key;
+    section.innerHTML = html;
+    anchorSection.insertAdjacentElement("afterend", section);
+    return {nav, section};
+  }
 
-  const section = document.createElement("section");
-  section.className = "view";
-  section.dataset.section = "test";
-  section.innerHTML = `
-    <div class="page-heading">
-      <div>
-        <span class="eyebrow">Email design</span>
-        <h1>Send a test</h1>
-        <p>Send your saved design to any address and walk through the real verification flow.</p>
-      </div>
-    </div>
-    <article class="surface create-project-card" style="max-width:640px">
-      <div class="surface-head">
-        <div><span class="mini-label">Saved design for</span><h2 id="testProjectName">No project selected</h2></div>
-      </div>
+  /* ---------- Verification flow view ---------- */
+  const flowView = addView("flow", "Verification", "✔", designerNav, designerSection, `
+    <div class="page-heading"><div>
+      <span class="eyebrow">Verification</span>
+      <h1>Verification flow</h1>
+      <p>Choose how your users verify, and what they see afterwards.</p>
+    </div></div>
+    <article class="surface create-project-card" style="max-width:680px">
+      <div class="surface-head"><div><span class="mini-label">Project</span><h2 id="flowProjectName">No project selected</h2></div></div>
+      <form id="flowForm">
+        <label>Verification method
+          <select id="flowMethod" style="${field}">
+            <option value="link">Link: the user taps a button in the email</option>
+            <option value="code">Secret code: the user types a 6-digit code</option>
+          </select>
+        </label>
+        <div id="flowCodeBox">
+          <label>Text above the code in the email
+            <input id="flowCodeLabel" type="text" maxlength="60">
+          </label>
+          <p class="form-helper">In code mode the email button is replaced by the code. Your site checks the code with <b>POST /api/v1/verify-code</b>.</p>
+        </div>
+        <div id="flowAfterBox" style="display:grid;gap:14px">
+          <label>After the user taps the button
+            <select id="flowAfterMode" style="${field}">
+              <option value="page">Show a success page I design</option>
+              <option value="redirect">Send them straight to my website</option>
+            </select>
+          </label>
+          <div id="flowPageFields" style="display:grid;gap:14px">
+            <label>Heading <input id="flowHeading" type="text" maxlength="100"></label>
+            <label>Message <textarea id="flowMessage" rows="3" maxlength="400" style="${field}"></textarea></label>
+            <label>Button text (opens your website) <input id="flowButtonText" type="text" maxlength="40"></label>
+            <label class="check-label"><input id="flowShowLogo" type="checkbox"> Show my logo on the page</label>
+            <p class="form-helper">You can use {{email}} and {{projectName}}. Colors, fonts and button style come from your email design. The button needs a website URL on the project.</p>
+          </div>
+        </div>
+        <button class="primary" type="submit" id="flowSave">Save flow</button>
+        <button class="secondary" type="button" id="flowPreview">Preview success page</button>
+      </form>
+    </article>`);
+
+  function toggleFlowFields() {
+    const code = $("flowMethod").value === "code";
+    $("flowCodeBox").style.display = code ? "" : "none";
+    $("flowAfterBox").style.display = code ? "none" : "grid";
+    $("flowPageFields").style.display = $("flowAfterMode").value === "page" ? "grid" : "none";
+  }
+
+  function fillFlow(f) {
+    $("flowMethod").value = f.method;
+    $("flowCodeLabel").value = f.codeLabel;
+    $("flowAfterMode").value = f.afterMode;
+    $("flowHeading").value = f.afterHeading;
+    $("flowMessage").value = f.afterMessage;
+    $("flowButtonText").value = f.afterButtonText;
+    $("flowShowLogo").checked = !!f.afterShowLogo;
+    toggleFlowFields();
+  }
+
+  function readFlow() {
+    return {
+      method: $("flowMethod").value,
+      codeLabel: $("flowCodeLabel").value,
+      afterMode: $("flowAfterMode").value,
+      afterHeading: $("flowHeading").value,
+      afterMessage: $("flowMessage").value,
+      afterButtonText: $("flowButtonText").value,
+      afterShowLogo: $("flowShowLogo").checked
+    };
+  }
+
+  async function loadFlowView() {
+    $("flowProjectName").textContent = currentProject ? currentProject.name : "No project selected";
+    if (!currentProject) return;
+    const data = await api("/api/flow?projectId=" + encodeURIComponent(currentProject.id));
+    fillFlow(data.flow);
+  }
+
+  $("flowMethod").addEventListener("change", toggleFlowFields);
+  $("flowAfterMode").addEventListener("change", toggleFlowFields);
+  $("flowForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!currentProject) { toast("Create or select a project first."); return; }
+    try {
+      const data = await api("/api/flow", {
+        method: "PUT",
+        headers: jsonHeaders,
+        body: JSON.stringify({projectId: currentProject.id, flow: readFlow()})
+      });
+      fillFlow(data.flow);
+      toast("Verification flow saved.");
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+  $("flowPreview").addEventListener("click", () => {
+    if (!currentProject) { toast("Create or select a project first."); return; }
+    window.open("/preview/success?projectId=" + encodeURIComponent(currentProject.id), "_blank");
+  });
+
+  /* ---------- Send test view ---------- */
+  const testView = addView("test", "Send test", "✉", flowView.nav, flowView.section, `
+    <div class="page-heading"><div>
+      <span class="eyebrow">Email design</span>
+      <h1>Send a test</h1>
+      <p>Send your saved design and walk through the real verification flow.</p>
+    </div></div>
+    <article class="surface create-project-card" style="max-width:680px">
+      <div class="surface-head"><div><span class="mini-label">Saved design for</span><h2 id="testProjectName">No project selected</h2></div></div>
       <form id="testForm">
-        <label>Send test to
-          <input id="testEmail" type="email" placeholder="you@example.com" required>
-        </label>
-        <label>Recipient name (optional)
-          <input id="testName" type="text" placeholder="Test User">
-        </label>
+        <label>Send test to <input id="testEmail" type="email" placeholder="you@example.com" required></label>
+        <label>Recipient name (optional) <input id="testName" type="text" placeholder="Test User"></label>
         <button class="primary" id="testSend" type="submit">Send test email</button>
       </form>
-      <p class="form-helper">Tests use your last saved design, so tap "Save design" first if you changed something. Clicking the button in a test email shows a success page and does not mark the address as verified.</p>
+      <p class="form-helper">Tests use your last saved design and verification flow, so save first if you changed something. Test verifications are not counted as real ones.</p>
       <div id="testResult"></div>
-    </article>`;
-  designerSection.insertAdjacentElement("afterend", section);
+      <div id="testStatus" style="margin-top:14px"></div>
+      <div id="testCodeBox" style="display:none;margin-top:14px">
+        <label>Enter the code from the email
+          <input id="testCode" type="text" inputmode="numeric" maxlength="6" placeholder="123456">
+        </label>
+        <button class="secondary" type="button" id="testVerifyCode" style="margin-top:10px">Verify code</button>
+      </div>
+      <button class="secondary" type="button" id="testRefresh" style="display:none;margin-top:12px">Check status</button>
+    </article>`);
+
+  let lastTest = null;
+  let pollTimer = null;
+
+  function stopPolling() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
+  function startPolling() {
+    stopPolling();
+    const until = Date.now() + 15 * 60000;
+    pollTimer = setInterval(() => {
+      const active = document.querySelector('.view[data-section="test"].active-view');
+      if (!active || Date.now() > until) { stopPolling(); return; }
+      checkTestStatus(false);
+    }, 4000);
+  }
+
+  function renderTestStatus(data) {
+    const box = $("testStatus");
+    if (!lastTest) { box.innerHTML = ""; return; }
+    if (data.verified) {
+      const when = data.verifiedAt ? new Date(data.verifiedAt).toLocaleTimeString() : "";
+      box.innerHTML = '<div class="successBox"><strong>✓ Verified</strong><p>' + esc(lastTest.email) +
+        " was verified" + (when ? " at " + esc(when) : "") + ".</p></div>";
+      $("testCodeBox").style.display = "none";
+    } else {
+      box.innerHTML = '<div class="security-warning"><strong>Not verified yet</strong><span>' +
+        (lastTest.method === "code"
+          ? "Type the code from the email below."
+          : "Waiting for you to tap the button in the email. This updates automatically.") +
+        "</span></div>";
+    }
+  }
+
+  async function checkTestStatus(manual) {
+    if (!currentProject || !lastTest) return;
+    try {
+      const data = await api("/api/test-status?projectId=" + encodeURIComponent(currentProject.id) +
+        "&email=" + encodeURIComponent(lastTest.email));
+      lastTest.verified = !!data.verified;
+      renderTestStatus(data);
+      if (data.verified) stopPolling();
+    } catch (err) {
+      if (manual) toast(err.message);
+    }
+  }
+
+  function refreshTestView() {
+    $("testProjectName").textContent = currentProject ? currentProject.name : "No project selected";
+    $("testSend").disabled = !currentProject;
+    if (developer && !$("testEmail").value) $("testEmail").value = developer.email || "";
+    if (lastTest && currentProject && lastTest.projectId === currentProject.id) {
+      checkTestStatus(false);
+      if (!lastTest.verified) startPolling();
+    } else {
+      lastTest = null;
+      stopPolling();
+      $("testResult").innerHTML = "";
+      $("testStatus").innerHTML = "";
+      $("testCodeBox").style.display = "none";
+      $("testRefresh").style.display = "none";
+    }
+  }
+
+  $("testForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!currentProject) { toast("Create or select a project first."); return; }
+    const button = $("testSend");
+    button.disabled = true;
+    button.textContent = "Sending…";
+    $("testResult").innerHTML = "";
+    try {
+      const email = $("testEmail").value.trim();
+      const data = await api("/api/test-email", {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({projectId: currentProject.id, email, name: $("testName").value})
+      });
+      lastTest = {projectId: currentProject.id, email, method: data.method, verified: false};
+      $("testResult").innerHTML = '<div class="successBox"><strong>Test email sent.</strong><p>' +
+        (data.method === "code"
+          ? "Open your inbox (check spam too) and find the 6-digit code. It works for "
+          : "Open your inbox (check spam too) and tap the button. The link works for ") +
+        data.expires_in_minutes + " minutes.</p></div>";
+      $("testCodeBox").style.display = data.method === "code" ? "" : "none";
+      $("testCode").value = "";
+      $("testRefresh").style.display = "";
+      renderTestStatus({verified: false});
+      if (data.method === "link") startPolling(); else stopPolling();
+      toast("Test email sent.");
+    } catch (err) {
+      $("testResult").innerHTML = '<div class="security-warning"><strong>Could not send</strong><span>' +
+        esc(err.message) + "</span></div>";
+    } finally {
+      button.disabled = false;
+      button.textContent = "Send test email";
+    }
+  });
+
+  $("testVerifyCode").addEventListener("click", async () => {
+    if (!currentProject || !lastTest) return;
+    try {
+      await api("/api/test-verify-code", {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({projectId: currentProject.id, email: lastTest.email, code: $("testCode").value})
+      });
+      await checkTestStatus(true);
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+  $("testRefresh").addEventListener("click", () => checkTestStatus(true));
 
   const toolbar = document.querySelector(".toolbar-actions");
   if (toolbar) {
@@ -989,49 +1221,10 @@ async function rotateApiKey() {
     toolbar.insertBefore(shortcut, toolbar.querySelector(".primary"));
   }
 
-  function refreshTestView() {
-    $("testProjectName").textContent = currentProject ? currentProject.name : "No project selected";
-    $("testSend").disabled = !currentProject;
-    $("testResult").innerHTML = "";
-    if (developer && !$("testEmail").value) $("testEmail").value = developer.email || "";
-  }
-
   const baseNavigate = navigate;
   navigate = function (view) {
     baseNavigate(view);
+    if (view === "flow") loadFlowView().catch((err) => toast(err.message));
     if (view === "test") refreshTestView();
   };
-
-  $("testForm").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (!currentProject) {
-      toast("Create or select a project first.");
-      return;
-    }
-    const button = $("testSend");
-    button.disabled = true;
-    button.textContent = "Sending…";
-    $("testResult").innerHTML = "";
-    try {
-      const data = await api("/api/test-email", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-          projectId: currentProject.id,
-          email: $("testEmail").value,
-          name: $("testName").value
-        })
-      });
-      $("testResult").innerHTML =
-        '<div class="successBox"><strong>Test email sent.</strong><p>Open your inbox (check spam too) and tap the button. The link works for ' +
-        data.expires_in_minutes + ' minutes.</p></div>';
-      toast("Test email sent.");
-    } catch (err) {
-      $("testResult").innerHTML =
-        '<div class="security-warning"><strong>Could not send</strong><span>' + escapeHtml(err.message) + '</span></div>';
-    } finally {
-      button.disabled = false;
-      button.textContent = "Send test email";
-    }
-  });
 })();

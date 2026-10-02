@@ -1,11 +1,24 @@
-import { json, fail, randomHex, sha256Hex, cleanLine, normalizeEmail, validEmail } from './util.js';
-import { DEFAULT_DESIGN, sanitizeDesign, renderEmail, renderSubject, escapeHtml } from './design.js';
+import {
+  json,
+  fail,
+  randomHex,
+  sha256Hex,
+  safeEqual,
+  cleanLine,
+  normalizeEmail,
+  validEmail,
+} from './util.js';
+import { renderEmail, renderSubject, escapeHtml } from './design.js';
+import { loadFlow, loadDesign, successPageResponse } from './flow.js';
 
 const enc = new TextEncoder();
 const TOKEN_MINUTES = 15;
+const CODE_MINUTES = 10;
+const MAX_CODE_ATTEMPTS = 5;
 const MAX_PER_EMAIL_HOUR = 3;
 const MAX_PER_PROJECT_HOUR = 100;
 const MAX_TESTS_PER_PROJECT_HOUR = 10;
+const PAST = '1970-01-01T00:00:00.000Z';
 let cachedToken = null;
 
 function b64Utf8(text) {
@@ -22,6 +35,12 @@ function toBase64Url(b64) {
 function pickReplyTo(address) {
   const value = String(address || '').trim();
   return /^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$/.test(value) ? value : '';
+}
+
+function randomCode() {
+  const a = new Uint32Array(1);
+  crypto.getRandomValues(a);
+  return String(a[0] % 1000000).padStart(6, '0');
 }
 
 async function getAccessToken(env) {
@@ -98,6 +117,10 @@ async function projectFromKey(request, env) {
 
 export async function issueVerification(env, url, project, opts) {
   const { email, name, redirectUrl, isTest } = opts;
+  const flow = await loadFlow(env, project.id);
+  const method = flow.method;
+  const minutes = method === 'code' ? CODE_MINUTES : TOKEN_MINUTES;
+
   const now = new Date();
   const hourAgo = new Date(now.getTime() - 3600000).toISOString();
   const dayAgo = new Date(now.getTime() - 86400000).toISOString();
@@ -131,35 +154,48 @@ export async function issueVerification(env, url, project, opts) {
     }
   }
 
-  const token = randomHex(32);
-  const tokenHash = await sha256Hex(token);
-  const expiresAt = new Date(now.getTime() + TOKEN_MINUTES * 60000).toISOString();
+  let token = '';
+  let code = '';
+  let tokenHash;
+  let codeHash = '';
+  if (method === 'code') {
+    code = randomCode();
+    tokenHash = await sha256Hex(randomHex(32));
+    codeHash = await sha256Hex(`${project.id}:${email}:${code}`);
+  } else {
+    token = randomHex(32);
+    tokenHash = await sha256Hex(token);
+  }
+
+  const expiresAt = new Date(now.getTime() + minutes * 60000).toISOString();
   await env.DB.prepare(
-    'INSERT INTO verification_tokens (token_hash, project_id, email, name, created_at, expires_at, redirect_url, is_test) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    `INSERT INTO verification_tokens
+     (token_hash, project_id, email, name, created_at, expires_at, redirect_url, is_test, kind, code_hash)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(tokenHash, project.id, email, name, now.toISOString(), expiresAt, redirectUrl || '', isTest ? 1 : 0)
+    .bind(
+      tokenHash,
+      project.id,
+      email,
+      name,
+      now.toISOString(),
+      expiresAt,
+      redirectUrl || '',
+      isTest ? 1 : 0,
+      method,
+      codeHash
+    )
     .run();
 
-  const row = await env.DB.prepare(
-    'SELECT design, updated_at FROM email_templates WHERE project_id = ?'
-  )
-    .bind(project.id)
-    .first();
-  let stored = null;
-  if (row && row.design) {
-    try {
-      stored = JSON.parse(row.design);
-    } catch (err) {
-      stored = null;
-    }
-  }
-  const design = sanitizeDesign(stored || { ...DEFAULT_DESIGN, companyName: project.name });
-  const version = encodeURIComponent((row && row.updated_at) || '');
+  const { design, version } = await loadDesign(env, project);
   const vars = {
     projectName: project.name,
     name,
     email,
-    verificationUrl: `${url.origin}/verify/${token}`,
+    verificationUrl: method === 'link' ? `${url.origin}/verify/${token}` : '',
+    code,
+    codeLabel: flow.codeLabel,
+    expiryMinutes: minutes,
     logoUrl: `${url.origin}/img/${project.id}/logo?v=${version}`,
     headerUrl: `${url.origin}/img/${project.id}/header?v=${version}`,
   };
@@ -173,7 +209,65 @@ export async function issueVerification(env, url, project, opts) {
     return { ok: false, status: 502, message: 'Could not send the email. Please try again later.' };
   }
 
-  return { ok: true, expiresInMinutes: TOKEN_MINUTES };
+  if (method === 'code') {
+    await env.DB.prepare(
+      `UPDATE verification_tokens SET expires_at = ?
+       WHERE project_id = ? AND email = ? AND kind = 'code' AND is_test = ?
+       AND token_hash != ? AND expires_at > ?`
+    )
+      .bind(PAST, project.id, email, isTest ? 1 : 0, tokenHash, now.toISOString())
+      .run();
+  }
+
+  return { ok: true, method, expiresInMinutes: minutes };
+}
+
+export async function checkCode(env, project, email, code, isTest) {
+  const now = new Date().toISOString();
+  const row = await env.DB.prepare(
+    `SELECT token_hash, code_hash FROM verification_tokens
+     WHERE project_id = ? AND email = ? AND kind = 'code' AND is_test = ? AND expires_at > ?
+     ORDER BY created_at DESC LIMIT 1`
+  )
+    .bind(project.id, email, isTest ? 1 : 0, now)
+    .first();
+  if (!row) {
+    return { ok: false, status: 400, message: 'Code expired or not found. Request a new code.' };
+  }
+
+  const bumped = await env.DB.prepare(
+    'UPDATE verification_tokens SET attempts = attempts + 1 WHERE token_hash = ? AND attempts < ? RETURNING attempts'
+  )
+    .bind(row.token_hash, MAX_CODE_ATTEMPTS)
+    .first();
+  if (!bumped) {
+    return { ok: false, status: 429, message: 'Too many wrong attempts. Request a new code.' };
+  }
+
+  const given = await sha256Hex(`${project.id}:${email}:${String(code).trim()}`);
+  if (!safeEqual(given, row.code_hash)) {
+    const left = MAX_CODE_ATTEMPTS - bumped.attempts;
+    return {
+      ok: false,
+      status: 400,
+      message: left > 0 ? `Incorrect code. ${left} attempt(s) left.` : 'Too many wrong attempts. Request a new code.',
+    };
+  }
+
+  const statements = [
+    env.DB.prepare(
+      'UPDATE verification_tokens SET expires_at = ?, verified_at = ? WHERE token_hash = ?'
+    ).bind(PAST, now, row.token_hash),
+  ];
+  if (!isTest) {
+    statements.unshift(
+      env.DB.prepare(
+        'INSERT OR REPLACE INTO verified_emails (project_id, email, verified_at) VALUES (?, ?, ?)'
+      ).bind(project.id, email, now)
+    );
+  }
+  await env.DB.batch(statements);
+  return { ok: true };
 }
 
 async function sendVerification(request, env, url, project) {
@@ -212,9 +306,23 @@ async function sendVerification(request, env, url, project) {
 
   return json({
     success: true,
-    message: 'Verification email sent.',
+    method: result.method,
+    message: result.method === 'code' ? 'Verification code sent.' : 'Verification email sent.',
     expires_in_minutes: result.expiresInMinutes,
   });
+}
+
+async function verifyCodeRequest(request, env, project) {
+  const body = await request.json().catch(() => null);
+  if (!body) return fail('Send a JSON body with "email" and "code".');
+  const email = normalizeEmail(body.email);
+  const code = String(body.code ?? '').trim();
+  if (!validEmail(email)) return fail('A valid "email" is required.');
+  if (!/^\d{6}$/.test(code)) return fail('A 6-digit "code" is required.');
+
+  const result = await checkCode(env, project, email, code, false);
+  if (!result.ok) return fail(result.message, result.status);
+  return json({ success: true, email, verified: true });
 }
 
 async function verificationStatus(env, url, project) {
@@ -240,17 +348,17 @@ export async function handlePublicApi(request, env, url) {
   if (url.pathname === '/api/v1/send-verification' && request.method === 'POST') {
     return await sendVerification(request, env, url, project);
   }
+  if (url.pathname === '/api/v1/verify-code' && request.method === 'POST') {
+    return await verifyCodeRequest(request, env, project);
+  }
   if (url.pathname === '/api/v1/status' && request.method === 'GET') {
     return await verificationStatus(env, url, project);
   }
   return fail('Not found.', 404);
 }
 
-function page(title, message, status = 200, linkUrl = '') {
-  const link = linkUrl
-    ? `<p style="margin:22px 0 0"><a href="${escapeHtml(linkUrl)}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 22px;border-radius:9px;font-weight:700">Open website</a></p>`
-    : '';
-  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title></head><body style="margin:0;font-family:Arial,sans-serif;background:#f4f7fb;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px;box-sizing:border-box"><div style="max-width:480px;background:#fff;border-radius:16px;padding:36px;text-align:center;box-shadow:0 8px 35px rgba(0,0,0,.08)"><h1 style="margin:0 0 12px;color:#111827">${escapeHtml(title)}</h1><p style="margin:0;color:#4b5563;line-height:1.6">${escapeHtml(message)}</p>${link}</div></body></html>`;
+function page(title, message, status = 200) {
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title></head><body style="margin:0;font-family:Arial,sans-serif;background:#f4f7fb;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px;box-sizing:border-box"><div style="max-width:480px;background:#fff;border-radius:16px;padding:36px;text-align:center;box-shadow:0 8px 35px rgba(0,0,0,.08)"><h1 style="margin:0 0 12px;color:#111827">${escapeHtml(title)}</h1><p style="margin:0;color:#4b5563;line-height:1.6">${escapeHtml(message)}</p></div></body></html>`;
   return new Response(html, {
     status,
     headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
@@ -267,47 +375,56 @@ export async function handleVerify(request, env, url) {
   const row = await env.DB.prepare(
     `SELECT t.email, t.expires_at, t.redirect_url, t.project_id, t.is_test, p.name AS project_name, p.website
      FROM verification_tokens t JOIN projects p ON p.id = t.project_id
-     WHERE t.token_hash = ?`
+     WHERE t.token_hash = ? AND t.kind = 'link'`
   )
     .bind(tokenHash)
     .first();
   if (!row || new Date(row.expires_at) <= new Date()) return invalid();
 
-  const burn = env.DB.prepare(
-    'UPDATE verification_tokens SET expires_at = ? WHERE token_hash = ?'
-  ).bind('1970-01-01T00:00:00.000Z', tokenHash);
-
-  if (row.is_test) {
-    await burn.run();
-    return page(
-      'Test successful',
-      row.website
-        ? `This was a test, so ${row.email} was not marked as verified. In production your user would be redirected to ${row.website} and counted as verified.`
-        : `This was a test, so ${row.email} was not marked as verified. Add a website URL to your project and your users will be redirected there after verifying.`,
-      200,
-      row.website
+  const now = new Date().toISOString();
+  const statements = [
+    env.DB.prepare(
+      'UPDATE verification_tokens SET expires_at = ?, verified_at = ? WHERE token_hash = ?'
+    ).bind(PAST, now, tokenHash),
+  ];
+  if (!row.is_test) {
+    statements.unshift(
+      env.DB.prepare(
+        'INSERT OR REPLACE INTO verified_emails (project_id, email, verified_at) VALUES (?, ?, ?)'
+      ).bind(row.project_id, row.email, now)
     );
   }
+  await env.DB.batch(statements);
 
-  const now = new Date().toISOString();
-  await env.DB.batch([
-    env.DB.prepare(
-      'INSERT OR REPLACE INTO verified_emails (project_id, email, verified_at) VALUES (?, ?, ?)'
-    ).bind(row.project_id, row.email, now),
-    burn,
-  ]);
-
+  const flow = await loadFlow(env, row.project_id);
   const target = row.redirect_url || row.website;
+  let targetUrl = '';
   if (target) {
     const dest = new URL(target);
     dest.searchParams.set('smartbase_status', 'verified');
     dest.searchParams.set('email', row.email);
+    if (row.is_test) dest.searchParams.set('test', '1');
+    targetUrl = dest.toString();
+  }
+
+  if (flow.afterMode === 'redirect' && targetUrl) {
     return new Response(null, {
       status: 302,
-      headers: { Location: dest.toString(), 'Cache-Control': 'no-store' },
+      headers: { Location: targetUrl, 'Cache-Control': 'no-store' },
     });
   }
-  return page('Email verified', `${row.email} has been verified for ${row.project_name}.`);
+
+  const project = { id: row.project_id, name: row.project_name };
+  const { design, version } = await loadDesign(env, project);
+  return successPageResponse(design, flow, {
+    projectName: row.project_name,
+    email: row.email,
+    buttonUrl: targetUrl,
+    logoUrl: `${url.origin}/img/${row.project_id}/logo?v=${version}`,
+    notice: row.is_test
+      ? 'This was a test, so the address was not marked as verified in production.'
+      : '',
+  });
 }
 
 export async function handleImage(request, env, url) {

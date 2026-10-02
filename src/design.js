@@ -118,7 +118,7 @@ function fill(text, vars) {
     .split('{{projectName}}').join(escapeHtml(vars.projectName))
     .split('{{name}}').join(escapeHtml(vars.name))
     .split('{{email}}').join(escapeHtml(vars.email))
-    .split('{{verification_url}}').join(vars.verificationUrl);
+    .split('{{verification_url}}').join(vars.verificationUrl || '');
 }
 
 export function renderSubject(design, vars) {
@@ -151,6 +151,16 @@ export function renderEmail(design, vars) {
     : '';
   const buttonWidth = d.buttonWidth === 'auto' ? 'auto' : d.buttonWidth;
 
+  const action = vars.code
+    ? `<div style="text-align:center;margin:25px 0">
+<div style="font-size:13px;color:${d.textColor};margin-bottom:10px">${escapeHtml(vars.codeLabel || 'Your verification code')}</div>
+<div style="display:inline-block;padding:14px 22px;border-radius:${d.buttonRadius}px;background:${d.background};border:1px dashed ${d.brandColor};color:${d.headingColor};font-size:32px;font-weight:700;letter-spacing:8px;font-family:Courier New,monospace">${escapeHtml(vars.code)}</div>
+<div style="font-size:12px;color:${d.footerColor};margin-top:12px">This code expires in ${escapeHtml(vars.expiryMinutes)} minutes. Never share it with anyone.</div>
+</div>`
+    : `<div style="text-align:${d.buttonAlign};margin:25px 0">
+<a href="{{verification_url}}" style="display:inline-block;width:${buttonWidth};max-width:100%;padding:14px 24px;box-sizing:border-box;background:${d.buttonColor};color:${d.buttonTextColor};text-decoration:none;border-radius:${d.buttonRadius}px;font-weight:700;text-align:center">${escapeHtml(d.buttonText)}</a>
+</div>`;
+
   const html = `<!doctype html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -163,9 +173,7 @@ ${logo}
 <h1 style="margin:0 0 18px;color:${d.headingColor};font-size:${d.headingSize}px;text-align:center;line-height:1.2">${escapeHtml(d.heading)}</h1>
 <div style="color:${d.textColor};font-size:${d.textSize}px;line-height:1.7;text-align:center">${escapeHtml(d.message).replace(/\n/g, '<br>')}</div>
 ${divider}
-<div style="text-align:${d.buttonAlign};margin:25px 0">
-<a href="{{verification_url}}" style="display:inline-block;width:${buttonWidth};max-width:100%;padding:14px 24px;box-sizing:border-box;background:${d.buttonColor};color:${d.buttonTextColor};text-decoration:none;border-radius:${d.buttonRadius}px;font-weight:700;text-align:center">${escapeHtml(d.buttonText)}</a>
-</div>
+${action}
 ${support}
 <div style="margin-top:28px;color:${d.footerColor};font-size:12px;line-height:1.6;text-align:center">${escapeHtml(d.footerText).replace(/\n/g, '<br>')}</div>
 </div>
