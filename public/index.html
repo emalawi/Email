@@ -1,0 +1,591 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smartbase Email Platform</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+
+<header class="top">
+  <div class="brand">Smartbase</div>
+  <span>Transactional Email Platform</span>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <h1>Email verification for your websites.</h1>
+    <p>Create a developer account, create a project, design beautiful verification emails, and connect them to your website using an API key.</p>
+  </section>
+
+  <!-- AUTH -->
+  <section id="auth" class="card grid2">
+
+    <div>
+      <h2>Developer signup</h2>
+
+      <form id="signupForm">
+        <input id="signupName" placeholder="Name" required>
+        <input id="signupEmail" type="email" placeholder="Email" required>
+        <input id="signupPassword" type="password" placeholder="Password" required>
+        <button>Sign up</button>
+      </form>
+    </div>
+
+    <div>
+      <h2>Login</h2>
+
+      <form id="loginForm">
+        <input id="loginEmail" type="email" placeholder="Email" required>
+        <input id="loginPassword" type="password" placeholder="Password" required>
+        <button>Login</button>
+      </form>
+    </div>
+
+  </section>
+
+
+  <!-- DASHBOARD -->
+  <section id="dashboard" class="hidden">
+
+    <div class="card">
+      <div class="row">
+        <h2>Developer dashboard</h2>
+        <button class="secondary" onclick="logout()">Logout</button>
+      </div>
+
+      <p id="developerInfo"></p>
+    </div>
+
+
+    <!-- PROJECT -->
+    <div class="card">
+
+      <h2>Create a project</h2>
+
+      <form id="projectForm" class="grid2">
+
+        <input
+          id="projectName"
+          placeholder="Website / project name"
+          required
+        >
+
+        <input
+          id="projectWebsite"
+          placeholder="https://example.com"
+        >
+
+        <button>Create project</button>
+
+      </form>
+
+      <div id="projectResult"></div>
+
+    </div>
+
+
+    <!-- EMAIL DESIGNER -->
+    <div class="card">
+
+      <div class="row">
+        <div>
+          <h2>Email designer</h2>
+          <p class="designerIntro">
+            Build your verification email visually.
+          </p>
+        </div>
+
+        <select id="projectSelect"></select>
+      </div>
+
+
+      <!-- TEMPLATE STYLE -->
+      <div class="designerSection">
+
+        <h3>✨ Design style</h3>
+
+        <div class="styleGrid">
+
+          <button type="button" class="styleOption" data-style="classic">
+            <strong>Classic</strong>
+            <span>Clean & professional</span>
+          </button>
+
+          <button type="button" class="styleOption" data-style="modern">
+            <strong>Modern</strong>
+            <span>Fresh & colorful</span>
+          </button>
+
+          <button type="button" class="styleOption" data-style="minimal">
+            <strong>Minimal</strong>
+            <span>Simple & elegant</span>
+          </button>
+
+          <button type="button" class="styleOption" data-style="gradient">
+            <strong>Gradient</strong>
+            <span>Bright & attractive</span>
+          </button>
+
+          <button type="button" class="styleOption" data-style="dark">
+            <strong>Dark</strong>
+            <span>Dark & modern</span>
+          </button>
+
+          <button type="button" class="styleOption" data-style="corporate">
+            <strong>Corporate</strong>
+            <span>Business style</span>
+          </button>
+
+        </div>
+
+      </div>
+
+
+      <div class="designer">
+
+
+        <!-- CONTROLS -->
+        <div class="controls">
+
+
+          <!-- BRANDING -->
+          <div class="designerSection">
+
+            <h3>🏢 Branding</h3>
+
+            <label>
+              Company / brand name
+              <input
+                id="companyName"
+                placeholder="Your Company"
+              >
+            </label>
+
+            <label>
+              Developer logo
+              <input
+                id="logoFile"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              >
+            </label>
+
+            <div id="logoPreviewBox" class="logoPreviewBox hidden">
+              <img id="logoPreview" alt="Logo preview">
+              <button
+                type="button"
+                class="secondary"
+                id="removeLogo"
+              >
+                Remove logo
+              </button>
+            </div>
+
+            <label>
+              Logo position
+              <select id="logoPosition">
+                <option value="left">Left</option>
+                <option value="center" selected>Center</option>
+                <option value="right">Right</option>
+              </select>
+            </label>
+
+            <label>
+              Logo size
+              <input
+                id="logoWidth"
+                type="range"
+                min="40"
+                max="240"
+                value="100"
+              >
+              <span id="logoWidthValue">100px</span>
+            </label>
+
+            <label>
+              Header image / banner
+              <input
+                id="headerImageFile"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+              >
+            </label>
+
+            <div id="headerImagePreviewBox" class="logoPreviewBox hidden">
+              <img id="headerImagePreview" alt="Header preview">
+              <button
+                type="button"
+                class="secondary"
+                id="removeHeaderImage"
+              >
+                Remove banner
+              </button>
+            </div>
+
+          </div>
+
+
+          <!-- CONTENT -->
+          <div class="designerSection">
+
+            <h3>✍️ Email content</h3>
+
+            <label>
+              Subject
+              <input
+                id="subject"
+                placeholder="Verify your email for {{projectName}}"
+              >
+            </label>
+
+            <label>
+              Heading
+              <input
+                id="heading"
+                value="Verify your email"
+              >
+            </label>
+
+            <label>
+              Message
+              <textarea
+                id="message"
+                rows="5"
+              >Hello {{name}}, please verify your email address to continue.</textarea>
+            </label>
+
+            <label>
+              Heading color
+              <input
+                id="headingColor"
+                type="color"
+                value="#111827"
+              >
+            </label>
+
+            <label>
+              Heading size
+              <input
+                id="headingSize"
+                type="range"
+                min="18"
+                max="42"
+                value="28"
+              >
+              <span id="headingSizeValue">28px</span>
+            </label>
+
+            <label>
+              Text color
+              <input
+                id="textColor"
+                type="color"
+                value="#4b5563"
+              >
+            </label>
+
+            <label>
+              Text size
+              <input
+                id="textSize"
+                type="range"
+                min="12"
+                max="24"
+                value="16"
+              >
+              <span id="textSizeValue">16px</span>
+            </label>
+
+            <label>
+              Font
+              <select id="fontFamily">
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="Verdana, sans-serif">Verdana</option>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="Tahoma, sans-serif">Tahoma</option>
+                <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
+              </select>
+            </label>
+
+          </div>
+
+
+          <!-- BUTTON -->
+          <div class="designerSection">
+
+            <h3>🔘 Verification button</h3>
+
+            <label>
+              Button text
+              <input
+                id="buttonText"
+                value="Verify email"
+              >
+            </label>
+
+            <label>
+              Button URL variable
+              <input
+                value="{{verification_url}}"
+                disabled
+              >
+            </label>
+
+            <label>
+              Button color
+              <input
+                id="buttonColor"
+                type="color"
+                value="#2563eb"
+              >
+            </label>
+
+            <label>
+              Button text color
+              <input
+                id="buttonTextColor"
+                type="color"
+                value="#ffffff"
+              >
+            </label>
+
+            <label>
+              Button width
+              <select id="buttonWidth">
+                <option value="auto">Automatic</option>
+                <option value="220px">Small</option>
+                <option value="280px" selected>Medium</option>
+                <option value="100%">Full width</option>
+              </select>
+            </label>
+
+            <label>
+              Button alignment
+              <select id="buttonAlign">
+                <option value="left">Left</option>
+                <option value="center" selected>Center</option>
+                <option value="right">Right</option>
+              </select>
+            </label>
+
+            <label>
+              Button corner radius
+              <input
+                id="buttonRadius"
+                type="range"
+                min="0"
+                max="40"
+                value="8"
+              >
+              <span id="buttonRadiusValue">8px</span>
+            </label>
+
+          </div>
+
+
+          <!-- COLORS AND LAYOUT -->
+          <div class="designerSection">
+
+            <h3>🎨 Colors & layout</h3>
+
+            <label>
+              Brand color
+              <input
+                id="brandColor"
+                type="color"
+                value="#2563eb"
+              >
+            </label>
+
+            <label>
+              Email background
+              <input
+                id="bgColor"
+                type="color"
+                value="#f4f7fb"
+              >
+            </label>
+
+            <label>
+              Card background
+              <input
+                id="cardBackground"
+                type="color"
+                value="#ffffff"
+              >
+            </label>
+
+            <label>
+              Card width
+              <select id="cardWidth">
+                <option value="480px">Small</option>
+                <option value="560px" selected>Medium</option>
+                <option value="640px">Large</option>
+                <option value="700px">Extra large</option>
+              </select>
+            </label>
+
+            <label>
+              Card corner radius
+              <input
+                id="cardRadius"
+                type="range"
+                min="0"
+                max="32"
+                value="14"
+              >
+              <span id="cardRadiusValue">14px</span>
+            </label>
+
+            <label class="checkboxLabel">
+              <input
+                id="showDivider"
+                type="checkbox"
+                checked
+              >
+              Show divider
+            </label>
+
+          </div>
+
+
+          <!-- FOOTER -->
+          <div class="designerSection">
+
+            <h3>🧾 Footer</h3>
+
+            <label>
+              Footer text
+              <textarea
+                id="footerText"
+                rows="3"
+                placeholder="© {{projectName}}. All rights reserved."
+              >© {{projectName}}. All rights reserved.</textarea>
+            </label>
+
+            <label>
+              Footer color
+              <input
+                id="footerColor"
+                type="color"
+                value="#6b7280"
+              >
+            </label>
+
+            <label>
+              Support email
+              <input
+                id="supportEmail"
+                type="email"
+                placeholder="support@example.com"
+              >
+            </label>
+
+          </div>
+
+
+          <!-- ACTIONS -->
+          <div class="designerActions">
+
+            <button
+              type="button"
+              onclick="saveTemplate()"
+            >
+              💾 Save design
+            </button>
+
+            <button
+              type="button"
+              class="secondary"
+              id="resetDesign"
+            >
+              🔄 Reset
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <!-- PREVIEW -->
+        <div class="previewWrap">
+
+          <div class="previewToolbar">
+
+            <div class="previewLabel">
+              Live preview
+            </div>
+
+            <div class="previewModes">
+
+              <button
+                type="button"
+                class="previewMode active"
+                data-preview="desktop"
+              >
+                🖥️ Desktop
+              </button>
+
+              <button
+                type="button"
+                class="previewMode"
+                data-preview="mobile"
+              >
+                📱 Mobile
+              </button>
+
+            </div>
+
+          </div>
+
+          <iframe
+            id="preview"
+            title="Email preview"
+          ></iframe>
+
+        </div>
+
+      </div>
+
+
+      <div class="variablesBox">
+
+        <strong>Available variables</strong>
+
+        <div class="variableList">
+          <code>{{name}}</code>
+          <code>{{email}}</code>
+          <code>{{verification_url}}</code>
+          <code>{{projectName}}</code>
+          <code>{{companyName}}</code>
+          <code>{{supportEmail}}</code>
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- API -->
+    <div class="card">
+
+      <h2>API example</h2>
+
+      <pre id="apiExample"></pre>
+
+    </div>
+
+  </section>
+
+  <div id="toast"></div>
+
+</main>
+
+<script src="/app.js"></script>
+
+</body>
+</html>

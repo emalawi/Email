@@ -1,0 +1,558 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --primary: #2563eb;
+  --dark: #111827;
+  --text: #4b5563;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --background: #f3f6fb;
+  --card: #ffffff;
+  --radius: 16px;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--dark);
+  font-family: Arial, sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+}
+
+.top {
+  height: 64px;
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: white;
+  background: #111827;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .12);
+}
+
+.top .brand {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -.5px;
+}
+
+.top span {
+  opacity: .65;
+  font-size: 14px;
+}
+
+.wrap {
+  width: min(1400px, calc(100% - 30px));
+  margin: 30px auto 70px;
+}
+
+.hero {
+  margin-bottom: 25px;
+}
+
+.hero h1 {
+  margin: 0 0 10px;
+  font-size: clamp(28px, 5vw, 44px);
+  letter-spacing: -1px;
+}
+
+.hero p {
+  max-width: 760px;
+  margin: 0;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 25px;
+  margin-bottom: 22px;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, .04);
+}
+
+.card h2 {
+  margin: 0 0 18px;
+  font-size: 21px;
+}
+
+.card h3 {
+  margin: 0 0 17px;
+  font-size: 16px;
+}
+
+.card p {
+  color: var(--text);
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 25px;
+}
+
+form {
+  display: grid;
+  gap: 12px;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  border: 1px solid #d7dce5;
+  border-radius: 9px;
+  padding: 12px 13px;
+  background: white;
+  color: #111827;
+  outline: none;
+  transition: .2s;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .10);
+}
+
+textarea {
+  resize: vertical;
+}
+
+input[type="color"] {
+  height: 44px;
+  padding: 4px;
+  cursor: pointer;
+}
+
+input[type="range"] {
+  padding: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+button {
+  background: var(--primary);
+  color: white;
+  border-radius: 9px;
+  padding: 12px 18px;
+  font-weight: 700;
+  transition: transform .15s, opacity .15s, box-shadow .15s;
+}
+
+button:hover {
+  opacity: .92;
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+button.secondary {
+  background: #eef2f7;
+  color: #1f2937;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.row h2 {
+  margin-bottom: 4px;
+}
+
+.designerIntro {
+  margin: 0;
+  font-size: 14px;
+}
+
+
+/* =========================
+   DESIGNER
+========================= */
+
+.designer {
+  display: grid;
+  grid-template-columns: minmax(360px, 500px) minmax(420px, 1fr);
+  gap: 25px;
+  align-items: start;
+}
+
+.controls {
+  min-width: 0;
+}
+
+.designerSection {
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 18px;
+  margin-bottom: 15px;
+  background: #fbfcfe;
+}
+
+.designerSection h3 {
+  color: #111827;
+}
+
+.designerSection label {
+  display: block;
+  margin-bottom: 14px;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.designerSection label > input,
+.designerSection label > textarea,
+.designerSection label > select {
+  margin-top: 7px;
+}
+
+.checkboxLabel {
+  display: flex !important;
+  align-items: center;
+  gap: 9px;
+}
+
+.checkboxLabel input {
+  width: auto;
+  margin: 0;
+}
+
+
+/* =========================
+   STYLE PRESETS
+========================= */
+
+.styleGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.styleOption {
+  text-align: left;
+  background: white;
+  color: #111827;
+  border: 1px solid #dce1e9;
+  padding: 14px;
+  border-radius: 11px;
+  box-shadow: none;
+}
+
+.styleOption strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.styleOption span {
+  display: block;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.styleOption:hover {
+  border-color: var(--primary);
+  background: #f8faff;
+}
+
+.styleOption.selected {
+  border-color: var(--primary);
+  background: #eff6ff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, .10);
+}
+
+
+/* =========================
+   IMAGE PREVIEW
+========================= */
+
+.logoPreviewBox {
+  padding: 12px;
+  margin-bottom: 15px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  background: white;
+  text-align: center;
+}
+
+.logoPreviewBox img {
+  display: block;
+  max-width: 100%;
+  max-height: 130px;
+  margin: 0 auto 12px;
+  object-fit: contain;
+}
+
+.logoPreviewBox button {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+
+/* =========================
+   DESIGNER ACTIONS
+========================= */
+
+.designerActions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.designerActions button {
+  flex: 1;
+}
+
+
+/* =========================
+   PREVIEW
+========================= */
+
+.previewWrap {
+  position: sticky;
+  top: 20px;
+  min-width: 0;
+}
+
+.previewToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.previewLabel {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.previewModes {
+  display: flex;
+  gap: 5px;
+}
+
+.previewMode {
+  background: #eef2f7;
+  color: #374151;
+  padding: 8px 11px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.previewMode.active {
+  background: #111827;
+  color: white;
+}
+
+#preview {
+  display: block;
+  width: 100%;
+  height: 720px;
+  border: 1px solid #dbe1e8;
+  border-radius: 14px;
+  background: white;
+  box-shadow: 0 12px 35px rgba(15, 23, 42, .08);
+  transition: width .25s;
+}
+
+#preview.mobilePreview {
+  width: 390px;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+
+/* =========================
+   VARIABLES
+========================= */
+
+.variablesBox {
+  border: 1px solid #dbe3ef;
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 12px;
+  margin-top: 20px;
+}
+
+.variableList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.variableList code {
+  background: #111827;
+  color: #e5e7eb;
+  padding: 6px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+
+/* =========================
+   PROJECT RESULT
+========================= */
+
+.successBox {
+  margin-top: 15px;
+  padding: 16px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 11px;
+}
+
+.successBox code {
+  display: block;
+  overflow-x: auto;
+  padding: 12px;
+  margin: 8px 0;
+  background: #111827;
+  color: #e5e7eb;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.warningText {
+  font-size: 12px;
+  color: #92400e !important;
+}
+
+
+/* =========================
+   API
+========================= */
+
+pre {
+  overflow-x: auto;
+  padding: 18px;
+  border-radius: 10px;
+  background: #111827;
+  color: #e5e7eb;
+  line-height: 1.7;
+  font-size: 13px;
+}
+
+
+/* =========================
+   TOAST
+========================= */
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 25px;
+  transform: translate(-50%, 20px);
+  background: #111827;
+  color: white;
+  padding: 12px 18px;
+  border-radius: 9px;
+  font-size: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: .25s;
+  z-index: 9999;
+}
+
+#toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 1000px) {
+
+  .designer {
+    grid-template-columns: 1fr;
+  }
+
+  .previewWrap {
+    position: static;
+  }
+
+  #preview {
+    height: 650px;
+  }
+
+}
+
+
+@media (max-width: 700px) {
+
+  .top {
+    padding: 0 16px;
+  }
+
+  .top span {
+    display: none;
+  }
+
+  .wrap {
+    width: min(100% - 20px, 1400px);
+    margin-top: 20px;
+  }
+
+  .card {
+    padding: 17px;
+  }
+
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
+
+  .row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .styleGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .designerSection {
+    padding: 14px;
+  }
+
+  .designerActions {
+    flex-direction: column;
+  }
+
+  #preview {
+    height: 620px;
+  }
+
+  #preview.mobilePreview {
+    width: 360px;
+  }
+
+}
