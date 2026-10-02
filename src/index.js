@@ -1,6 +1,6 @@
 import { json, fail } from './util.js';
 import { handleDashboardApi } from './dashboard.js';
-import { handlePublicApi } from './public-api.js';
+import { handlePublicApi, handleVerify, handleImage } from './public-api.js';
 
 export default {
   async fetch(request, env) {
@@ -17,6 +17,14 @@ export default {
           status: 'running',
           tables: row.tables,
         });
+      }
+
+      if (url.pathname.startsWith('/verify/') && request.method === 'GET') {
+        return await handleVerify(request, env, url);
+      }
+
+      if (url.pathname.startsWith('/img/') && request.method === 'GET') {
+        return await handleImage(request, env, url);
       }
 
       if (url.pathname.startsWith('/api/v1/')) {

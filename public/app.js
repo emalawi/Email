@@ -815,3 +815,121 @@ async function restoreSession() {
 updateRangeLabels();
 switchAuth("signup");
 restoreSession();
+
+/* Smartbase backend overrides */
+var revealedKeys = {};
+
+async function api(url, options = {}) {
+  const response = await fetch(url, {credentials: "same-origin", ...options});
+  const data = await response.json().catch(() => ({}));
+  if (response.status === 401 && developer && !String(url).includes("/api/login")) {
+    developer = null;
+    localStorage.removeItem("smartbaseDeveloperId");
+    $("dashboard").classList.add("hidden");
+    $("auth").classList.remove("hidden");
+    toast("Session expired. Please log in again.");
+  }
+  if (!response.ok) throw new Error(data.error || data.message || "Request failed");
+  if (data.project && data.project.apiKey) revealedKeys[data.project.id] = data.project.apiKey;
+  if (Array.isArray(data.projects)) {
+    data.projects.forEach((p) => {
+      if (revealedKeys[p.id]) p.apiKey = revealedKeys[p.id];
+    });
+  }
+  return data;
+}
+
+async function logout() {
+  try { await fetch("/api/logout", {method: "POST"}); } catch {}
+  developer = null;
+  projects = [];
+  currentProject = null;
+  currentTemplate = null;
+  localStorage.removeItem("smartbaseDeveloperId");
+  $("dashboard").classList.add("hidden");
+  $("auth").classList.remove("hidden");
+  switchAuth("login");
+  toast("You have been logged out.");
+}
+
+async function restoreSession() {
+  if (!localStorage.getItem("smartbaseDeveloperId")) return;
+  try {
+    const me = await api("/api/me");
+    developer = me.developer;
+    const data = await api("/api/projects");
+    projects = data.projects || [];
+    enterDashboard();
+    populateProjectSelectors();
+    renderProjectList();
+    if (projects.length) {
+      currentProject = projects[0];
+      $("projectSelect").value = currentProject.id;
+      $("designerProjectSelect").value = currentProject.id;
+      await loadTemplate();
+      updateProjectUI();
+      updateApiExample();
+      updateKeyUI();
+    }
+  } catch {
+    localStorage.removeItem("smartbaseDeveloperId");
+  }
+}
+
+function updateApiExample() {
+  if (!currentProject) {
+    setText("apiExample", "Create a project to generate your integration example.");
+    return;
+  }
+  const base = location.origin;
+  $("apiExample").textContent =
+`# 1) Send a verification email (run on YOUR server, never in browser code)
+curl -X POST ${base}/api/v1/send-verification \\
+  -H "Content-Type: application/json" \\
+  -H "X-Smartbase-Key: YOUR_PROJECT_API_KEY" \\
+  -d '{"email":"customer@example.com","name":"Customer"}'
+
+# 2) After the user clicks the link, confirm on YOUR server
+curl "${base}/api/v1/status?email=customer@example.com" \\
+  -H "X-Smartbase-Key: YOUR_PROJECT_API_KEY"`;
+}
+
+function updateKeyUI() {
+  const box = $("projectApiKey");
+  if (!box) return;
+  if (!currentProject) {
+    box.textContent = "Create a project to generate a key.";
+    return;
+  }
+  const full = revealedKeys[currentProject.id];
+  box.textContent = full || (currentProject.keyPrefix || "sb_live_") + "••••••••••••••••••••••••";
+  if (!$("rotateApiKey") && $("copyApiKey")) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.id = "rotateApiKey";
+    button.className = "secondary";
+    button.textContent = "New key";
+    button.addEventListener("click", rotateApiKey);
+    $("copyApiKey").insertAdjacentElement("afterend", button);
+  }
+}
+
+async function rotateApiKey() {
+  if (!currentProject) return;
+  if (!confirm("Generate a new API key? The old key stops working immediately.")) return;
+  try {
+    const data = await api("/api/projects/rotate-key", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({projectId: currentProject.id})
+    });
+    revealedKeys[currentProject.id] = data.apiKey;
+    currentProject.apiKey = data.apiKey;
+    currentProject.keyPrefix = data.keyPrefix;
+    updateKeyUI();
+    updateApiExample();
+    toast("New API key generated. Copy it now.");
+  } catch (err) {
+    toast(err.message);
+  }
+}
