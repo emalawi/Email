@@ -1,591 +1,393 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Smartbase Email Platform</title>
-<link rel="stylesheet" href="/style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b0d10">
+  <title>Smartbase — Transactional Email</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
 </head>
-
 <body>
+  <div class="app-shell">
 
-<header class="top">
-  <div class="brand">Smartbase</div>
-  <span>Transactional Email Platform</span>
-</header>
-
-<main class="wrap">
-
-  <section class="hero">
-    <h1>Email verification for your websites.</h1>
-    <p>Create a developer account, create a project, design beautiful verification emails, and connect them to your website using an API key.</p>
-  </section>
-
-  <!-- AUTH -->
-  <section id="auth" class="card grid2">
-
-    <div>
-      <h2>Developer signup</h2>
-
-      <form id="signupForm">
-        <input id="signupName" placeholder="Name" required>
-        <input id="signupEmail" type="email" placeholder="Email" required>
-        <input id="signupPassword" type="password" placeholder="Password" required>
-        <button>Sign up</button>
-      </form>
-    </div>
-
-    <div>
-      <h2>Login</h2>
-
-      <form id="loginForm">
-        <input id="loginEmail" type="email" placeholder="Email" required>
-        <input id="loginPassword" type="password" placeholder="Password" required>
-        <button>Login</button>
-      </form>
-    </div>
-
-  </section>
-
-
-  <!-- DASHBOARD -->
-  <section id="dashboard" class="hidden">
-
-    <div class="card">
-      <div class="row">
-        <h2>Developer dashboard</h2>
-        <button class="secondary" onclick="logout()">Logout</button>
+    <!-- AUTH -->
+    <section id="auth" class="auth-screen">
+      <div class="auth-brand">
+        <div class="brand-mark">S</div>
+        <span>Smartbase</span>
       </div>
 
-      <p id="developerInfo"></p>
-    </div>
-
-
-    <!-- PROJECT -->
-    <div class="card">
-
-      <h2>Create a project</h2>
-
-      <form id="projectForm" class="grid2">
-
-        <input
-          id="projectName"
-          placeholder="Website / project name"
-          required
-        >
-
-        <input
-          id="projectWebsite"
-          placeholder="https://example.com"
-        >
-
-        <button>Create project</button>
-
-      </form>
-
-      <div id="projectResult"></div>
-
-    </div>
-
-
-    <!-- EMAIL DESIGNER -->
-    <div class="card">
-
-      <div class="row">
-        <div>
-          <h2>Email designer</h2>
-          <p class="designerIntro">
-            Build your verification email visually.
-          </p>
+      <div class="auth-grid">
+        <div class="auth-copy">
+          <div class="eyebrow"><span class="status-dot"></span> Transactional email infrastructure</div>
+          <h1>Make every verification email feel like part of your product.</h1>
+          <p>Design, manage, and connect branded verification emails to your websites without rebuilding your backend.</p>
+          <div class="auth-points">
+            <div><span>01</span><strong>Design visually</strong><small>Build polished verification emails with live preview.</small></div>
+            <div><span>02</span><strong>Connect securely</strong><small>Use a project API key without exposing it in your frontend.</small></div>
+            <div><span>03</span><strong>Ship faster</strong><small>Save your template once and keep your product experience consistent.</small></div>
+          </div>
         </div>
 
-        <select id="projectSelect"></select>
+        <div class="auth-card">
+          <div class="auth-card-head">
+            <div>
+              <span class="mini-label">Developer access</span>
+              <h2>Welcome to Smartbase</h2>
+            </div>
+            <div class="secure-pill">Secure</div>
+          </div>
+
+          <div class="auth-tabs" role="tablist">
+            <button type="button" class="auth-tab active" data-auth="signup">Create account</button>
+            <button type="button" class="auth-tab" data-auth="login">Log in</button>
+          </div>
+
+          <form id="signupForm" class="auth-form">
+            <label>Name<input id="signupName" autocomplete="name" placeholder="Roosevelt Chinkwende" required></label>
+            <label>Email<input id="signupEmail" type="email" autocomplete="email" placeholder="you@example.com" required></label>
+            <label>Password<input id="signupPassword" type="password" autocomplete="new-password" placeholder="Create a secure password" required></label>
+            <button class="primary wide" type="submit">Create Smartbase account <span>→</span></button>
+            <p class="form-note">By continuing, you agree to use Smartbase responsibly.</p>
+          </form>
+
+          <form id="loginForm" class="auth-form hidden">
+            <label>Email<input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com" required></label>
+            <label>Password<input id="loginPassword" type="password" autocomplete="current-password" placeholder="Your password" required></label>
+            <button class="primary wide" type="submit">Continue to dashboard <span>→</span></button>
+            <p class="form-note">Your session is restored automatically on this device.</p>
+          </form>
+        </div>
       </div>
+    </section>
 
-
-      <!-- TEMPLATE STYLE -->
-      <div class="designerSection">
-
-        <h3>✨ Design style</h3>
-
-        <div class="styleGrid">
-
-          <button type="button" class="styleOption" data-style="classic">
-            <strong>Classic</strong>
-            <span>Clean & professional</span>
-          </button>
-
-          <button type="button" class="styleOption" data-style="modern">
-            <strong>Modern</strong>
-            <span>Fresh & colorful</span>
-          </button>
-
-          <button type="button" class="styleOption" data-style="minimal">
-            <strong>Minimal</strong>
-            <span>Simple & elegant</span>
-          </button>
-
-          <button type="button" class="styleOption" data-style="gradient">
-            <strong>Gradient</strong>
-            <span>Bright & attractive</span>
-          </button>
-
-          <button type="button" class="styleOption" data-style="dark">
-            <strong>Dark</strong>
-            <span>Dark & modern</span>
-          </button>
-
-          <button type="button" class="styleOption" data-style="corporate">
-            <strong>Corporate</strong>
-            <span>Business style</span>
-          </button>
-
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="dashboard hidden">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-top">
+          <div class="brand-lockup">
+            <div class="brand-mark">S</div>
+            <div><strong>Smartbase</strong><span>Email infrastructure</span></div>
+          </div>
+          <button type="button" class="icon-button mobile-close" id="closeSidebar" aria-label="Close navigation">×</button>
         </div>
 
-      </div>
+        <div class="project-switcher">
+          <span class="nav-caption">Workspace</span>
+          <div class="workspace-chip">
+            <div class="workspace-avatar">S</div>
+            <div class="workspace-text"><strong id="workspaceName">Smartbase</strong><span>Developer workspace</span></div>
+            <span class="chevron">⌄</span>
+          </div>
+        </div>
 
+        <nav class="nav" aria-label="Main navigation">
+          <span class="nav-caption">Product</span>
+          <button type="button" class="nav-item active" data-view="overview"><span class="nav-icon">⌂</span>Overview</button>
+          <button type="button" class="nav-item" data-view="projects"><span class="nav-icon">◇</span>Projects</button>
+          <button type="button" class="nav-item" data-view="designer"><span class="nav-icon">✦</span>Email design</button>
+          <button type="button" class="nav-item" data-view="templates"><span class="nav-icon">▤</span>Templates</button>
+          <button type="button" class="nav-item" data-view="logs"><span class="nav-icon">≡</span>Activity</button>
 
-      <div class="designer">
+          <span class="nav-caption nav-caption-spaced">Developer</span>
+          <button type="button" class="nav-item" data-view="api"><span class="nav-icon">{ }</span>API docs</button>
+          <button type="button" class="nav-item" data-view="keys"><span class="nav-icon">⌁</span>API keys</button>
+          <button type="button" class="nav-item" data-view="settings"><span class="nav-icon">⚙</span>Settings</button>
+        </nav>
 
+        <div class="sidebar-bottom">
+          <div class="account-chip">
+            <div class="account-avatar" id="accountAvatar">D</div>
+            <div class="account-text"><strong id="accountName">Developer</strong><span id="accountEmail">Signed in</span></div>
+          </div>
+          <button type="button" class="logout-button" onclick="logout()">Log out <span>↗</span></button>
+        </div>
+      </aside>
 
-        <!-- CONTROLS -->
-        <div class="controls">
+      <div class="main-area">
+        <header class="topbar">
+          <button type="button" class="icon-button menu-button" id="openSidebar" aria-label="Open navigation">☰</button>
+          <div class="breadcrumbs"><span>Smartbase</span><b>/</b><strong id="breadcrumb">Overview</strong></div>
+          <div class="top-actions">
+            <span class="connection"><i></i> All systems operational</span>
+            <button type="button" class="icon-button" data-view="settings" aria-label="Settings">⚙</button>
+            <div class="top-avatar" id="topAvatar">D</div>
+          </div>
+        </header>
 
+        <main class="content">
 
-          <!-- BRANDING -->
-          <div class="designerSection">
-
-            <h3>🏢 Branding</h3>
-
-            <label>
-              Company / brand name
-              <input
-                id="companyName"
-                placeholder="Your Company"
-              >
-            </label>
-
-            <label>
-              Developer logo
-              <input
-                id="logoFile"
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/svg+xml"
-              >
-            </label>
-
-            <div id="logoPreviewBox" class="logoPreviewBox hidden">
-              <img id="logoPreview" alt="Logo preview">
-              <button
-                type="button"
-                class="secondary"
-                id="removeLogo"
-              >
-                Remove logo
-              </button>
+          <!-- OVERVIEW -->
+          <section class="view active-view" data-section="overview">
+            <div class="page-heading hero-heading">
+              <div>
+                <span class="eyebrow">Overview</span>
+                <h1 id="welcomeHeading">Good morning, Developer.</h1>
+                <p>Build a consistent verification experience for every website you connect to Smartbase.</p>
+              </div>
+              <div class="heading-actions">
+                <button class="secondary" type="button" data-view="designer">Open designer</button>
+                <button class="primary" type="button" data-view="projects">New project <span>+</span></button>
+              </div>
             </div>
 
-            <label>
-              Logo position
-              <select id="logoPosition">
-                <option value="left">Left</option>
-                <option value="center" selected>Center</option>
-                <option value="right">Right</option>
-              </select>
-            </label>
-
-            <label>
-              Logo size
-              <input
-                id="logoWidth"
-                type="range"
-                min="40"
-                max="240"
-                value="100"
-              >
-              <span id="logoWidthValue">100px</span>
-            </label>
-
-            <label>
-              Header image / banner
-              <input
-                id="headerImageFile"
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-              >
-            </label>
-
-            <div id="headerImagePreviewBox" class="logoPreviewBox hidden">
-              <img id="headerImagePreview" alt="Header preview">
-              <button
-                type="button"
-                class="secondary"
-                id="removeHeaderImage"
-              >
-                Remove banner
-              </button>
+            <div class="project-banner">
+              <div class="project-banner-main">
+                <div class="project-symbol">S</div>
+                <div><span class="mini-label">Selected project</span><h3 id="selectedProjectName">No project yet</h3><p id="selectedProjectWebsite">Create a project to start designing.</p></div>
+              </div>
+              <div class="project-banner-side">
+                <span class="live-badge"><i></i> Connected</span>
+                <select id="projectSelect" aria-label="Select project"></select>
+              </div>
             </div>
 
-          </div>
-
-
-          <!-- CONTENT -->
-          <div class="designerSection">
-
-            <h3>✍️ Email content</h3>
-
-            <label>
-              Subject
-              <input
-                id="subject"
-                placeholder="Verify your email for {{projectName}}"
-              >
-            </label>
-
-            <label>
-              Heading
-              <input
-                id="heading"
-                value="Verify your email"
-              >
-            </label>
-
-            <label>
-              Message
-              <textarea
-                id="message"
-                rows="5"
-              >Hello {{name}}, please verify your email address to continue.</textarea>
-            </label>
-
-            <label>
-              Heading color
-              <input
-                id="headingColor"
-                type="color"
-                value="#111827"
-              >
-            </label>
-
-            <label>
-              Heading size
-              <input
-                id="headingSize"
-                type="range"
-                min="18"
-                max="42"
-                value="28"
-              >
-              <span id="headingSizeValue">28px</span>
-            </label>
-
-            <label>
-              Text color
-              <input
-                id="textColor"
-                type="color"
-                value="#4b5563"
-              >
-            </label>
-
-            <label>
-              Text size
-              <input
-                id="textSize"
-                type="range"
-                min="12"
-                max="24"
-                value="16"
-              >
-              <span id="textSizeValue">16px</span>
-            </label>
-
-            <label>
-              Font
-              <select id="fontFamily">
-                <option value="Arial, sans-serif">Arial</option>
-                <option value="Verdana, sans-serif">Verdana</option>
-                <option value="Georgia, serif">Georgia</option>
-                <option value="Tahoma, sans-serif">Tahoma</option>
-                <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
-              </select>
-            </label>
-
-          </div>
-
-
-          <!-- BUTTON -->
-          <div class="designerSection">
-
-            <h3>🔘 Verification button</h3>
-
-            <label>
-              Button text
-              <input
-                id="buttonText"
-                value="Verify email"
-              >
-            </label>
-
-            <label>
-              Button URL variable
-              <input
-                value="{{verification_url}}"
-                disabled
-              >
-            </label>
-
-            <label>
-              Button color
-              <input
-                id="buttonColor"
-                type="color"
-                value="#2563eb"
-              >
-            </label>
-
-            <label>
-              Button text color
-              <input
-                id="buttonTextColor"
-                type="color"
-                value="#ffffff"
-              >
-            </label>
-
-            <label>
-              Button width
-              <select id="buttonWidth">
-                <option value="auto">Automatic</option>
-                <option value="220px">Small</option>
-                <option value="280px" selected>Medium</option>
-                <option value="100%">Full width</option>
-              </select>
-            </label>
-
-            <label>
-              Button alignment
-              <select id="buttonAlign">
-                <option value="left">Left</option>
-                <option value="center" selected>Center</option>
-                <option value="right">Right</option>
-              </select>
-            </label>
-
-            <label>
-              Button corner radius
-              <input
-                id="buttonRadius"
-                type="range"
-                min="0"
-                max="40"
-                value="8"
-              >
-              <span id="buttonRadiusValue">8px</span>
-            </label>
-
-          </div>
-
-
-          <!-- COLORS AND LAYOUT -->
-          <div class="designerSection">
-
-            <h3>🎨 Colors & layout</h3>
-
-            <label>
-              Brand color
-              <input
-                id="brandColor"
-                type="color"
-                value="#2563eb"
-              >
-            </label>
-
-            <label>
-              Email background
-              <input
-                id="bgColor"
-                type="color"
-                value="#f4f7fb"
-              >
-            </label>
-
-            <label>
-              Card background
-              <input
-                id="cardBackground"
-                type="color"
-                value="#ffffff"
-              >
-            </label>
-
-            <label>
-              Card width
-              <select id="cardWidth">
-                <option value="480px">Small</option>
-                <option value="560px" selected>Medium</option>
-                <option value="640px">Large</option>
-                <option value="700px">Extra large</option>
-              </select>
-            </label>
-
-            <label>
-              Card corner radius
-              <input
-                id="cardRadius"
-                type="range"
-                min="0"
-                max="32"
-                value="14"
-              >
-              <span id="cardRadiusValue">14px</span>
-            </label>
-
-            <label class="checkboxLabel">
-              <input
-                id="showDivider"
-                type="checkbox"
-                checked
-              >
-              Show divider
-            </label>
-
-          </div>
-
-
-          <!-- FOOTER -->
-          <div class="designerSection">
-
-            <h3>🧾 Footer</h3>
-
-            <label>
-              Footer text
-              <textarea
-                id="footerText"
-                rows="3"
-                placeholder="© {{projectName}}. All rights reserved."
-              >© {{projectName}}. All rights reserved.</textarea>
-            </label>
-
-            <label>
-              Footer color
-              <input
-                id="footerColor"
-                type="color"
-                value="#6b7280"
-              >
-            </label>
-
-            <label>
-              Support email
-              <input
-                id="supportEmail"
-                type="email"
-                placeholder="support@example.com"
-              >
-            </label>
-
-          </div>
-
-
-          <!-- ACTIONS -->
-          <div class="designerActions">
-
-            <button
-              type="button"
-              onclick="saveTemplate()"
-            >
-              💾 Save design
-            </button>
-
-            <button
-              type="button"
-              class="secondary"
-              id="resetDesign"
-            >
-              🔄 Reset
-            </button>
-
-          </div>
-
-        </div>
-
-
-        <!-- PREVIEW -->
-        <div class="previewWrap">
-
-          <div class="previewToolbar">
-
-            <div class="previewLabel">
-              Live preview
+            <div class="metrics-grid">
+              <article class="metric-card">
+                <div class="metric-top"><span>Emails sent</span><span class="metric-icon">↗</span></div>
+                <strong>—</strong><small>Live delivery metrics will appear here</small>
+              </article>
+              <article class="metric-card">
+                <div class="metric-top"><span>Delivered</span><span class="metric-icon">✓</span></div>
+                <strong>—</strong><small>Awaiting delivery event data</small>
+              </article>
+              <article class="metric-card">
+                <div class="metric-top"><span>Verification emails</span><span class="metric-icon">✦</span></div>
+                <strong>—</strong><small>Tracked by your sending integration</small>
+              </article>
+              <article class="metric-card">
+                <div class="metric-top"><span>Failed</span><span class="metric-icon muted">!</span></div>
+                <strong>—</strong><small>No log endpoint is exposed by the current backend</small>
+              </article>
             </div>
 
-            <div class="previewModes">
+            <div class="overview-grid">
+              <article class="surface activity-surface">
+                <div class="surface-head"><div><span class="mini-label">Activity</span><h2>Recent activity</h2></div><button type="button" class="text-button" data-view="logs">View all →</button></div>
+                <div class="empty-activity">
+                  <div class="empty-icon">≡</div>
+                  <strong>Activity data is ready for your backend</strong>
+                  <p>The current frontend contract does not expose a logs endpoint, so this view does not invent one.</p>
+                </div>
+              </article>
+              <article class="surface quick-surface">
+                <div class="surface-head"><div><span class="mini-label">Quick start</span><h2>Connect your first project</h2></div></div>
+                <div class="quick-steps">
+                  <div class="quick-step done"><span>1</span><div><strong>Create a project</strong><small>Give your website a name and URL.</small></div></div>
+                  <div class="quick-step"><span>2</span><div><strong>Design the email</strong><small>Brand the verification experience.</small></div></div>
+                  <div class="quick-step"><span>3</span><div><strong>Connect the API</strong><small>Use your project key server-side.</small></div></div>
+                </div>
+              </article>
+            </div>
+          </section>
 
-              <button
-                type="button"
-                class="previewMode active"
-                data-preview="desktop"
-              >
-                🖥️ Desktop
-              </button>
+          <!-- PROJECTS -->
+          <section class="view" data-section="projects">
+            <div class="page-heading">
+              <div><span class="eyebrow">Projects</span><h1>Your projects</h1><p>Manage the websites connected to your Smartbase account.</p></div>
+            </div>
+            <div class="project-layout">
+              <article class="surface create-project-card">
+                <div class="surface-head"><div><span class="mini-label">New project</span><h2>Create a project</h2></div><span class="surface-number">01</span></div>
+                <form id="projectForm">
+                  <label>Project name<input id="projectName" placeholder="Acme website" required></label>
+                  <label>Website URL<input id="projectWebsite" placeholder="https://example.com" inputmode="url"></label>
+                  <button class="primary wide" type="submit">Create project <span>→</span></button>
+                </form>
+                <div class="form-helper">A project gets its own Smartbase API key and email design.</div>
+              </article>
+              <article class="surface project-list-card">
+                <div class="surface-head"><div><span class="mini-label">Workspace</span><h2>Project list</h2></div><span id="projectCount" class="count-pill">0 projects</span></div>
+                <div id="projectList" class="project-list"><div class="empty-state"><div class="empty-icon">◇</div><strong>No projects yet</strong><p>Create your first project to see it here.</p></div></div>
+              </article>
+            </div>
+            <div id="projectResult"></div>
+          </section>
 
-              <button
-                type="button"
-                class="previewMode"
-                data-preview="mobile"
-              >
-                📱 Mobile
-              </button>
-
+          <!-- DESIGNER -->
+          <section class="view" data-section="designer">
+            <div class="page-heading designer-heading">
+              <div><span class="eyebrow">Email design</span><h1>Verification email studio</h1><p>Craft a branded email and see the result as you edit.</p></div>
+              <div class="designer-project-select"><span>Project</span><select id="designerProjectSelect" aria-label="Designer project"></select></div>
             </div>
 
-          </div>
+            <div class="designer-shell">
+              <div class="designer-toolbar">
+                <div class="toolbar-left"><span class="save-state" id="saveState"><i></i> Ready</span></div>
+                <div class="toolbar-actions">
+                  <button type="button" class="toolbar-button" id="resetDesign">Reset</button>
+                  <button type="button" class="toolbar-button" data-view="templates">Templates</button>
+                  <button type="button" class="primary small" onclick="saveTemplate()">Save design <span>✓</span></button>
+                </div>
+              </div>
 
-          <iframe
-            id="preview"
-            title="Email preview"
-          ></iframe>
+              <div class="designer-grid">
+                <aside class="designer-panel controls">
+                  <div class="panel-header"><div><span class="mini-label">Design controls</span><h2>Customize</h2></div></div>
 
-        </div>
+                  <div class="control-section">
+                    <div class="control-section-title"><span>01</span><strong>Branding</strong></div>
+                    <label>Company / brand name<input id="companyName" placeholder="Your company"></label>
+                    <label>Developer logo<input id="logoFile" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"></label>
+                    <div id="logoPreviewBox" class="upload-preview hidden"><img id="logoPreview" alt="Logo preview"><button type="button" class="text-button danger" id="removeLogo">Remove logo</button></div>
+                    <div class="two-fields">
+                      <label>Position<select id="logoPosition"><option value="left">Left</option><option value="center" selected>Center</option><option value="right">Right</option></select></label>
+                      <label>Size<input id="logoWidth" type="range" min="40" max="240" value="100"><span class="range-value" id="logoWidthValue">100px</span></label>
+                    </div>
+                    <label>Header image / banner<input id="headerImageFile" type="file" accept="image/png,image/jpeg,image/webp"></label>
+                    <div id="headerImagePreviewBox" class="upload-preview hidden"><img id="headerImagePreview" alt="Header preview"><button type="button" class="text-button danger" id="removeHeaderImage">Remove banner</button></div>
+                  </div>
 
+                  <div class="control-section">
+                    <div class="control-section-title"><span>02</span><strong>Content</strong></div>
+                    <label>Subject<input id="subject" placeholder="Verify your email for {{projectName}}"></label>
+                    <label>Heading<input id="heading" value="Verify your email"></label>
+                    <label>Message<textarea id="message" rows="4">Hello {{name}}, please verify your email address to continue.</textarea></label>
+                    <div class="two-fields">
+                      <label>Heading color<input id="headingColor" type="color" value="#111827"></label>
+                      <label>Heading size<input id="headingSize" type="range" min="18" max="42" value="28"><span class="range-value" id="headingSizeValue">28px</span></label>
+                    </div>
+                    <div class="two-fields">
+                      <label>Text color<input id="textColor" type="color" value="#4b5563"></label>
+                      <label>Text size<input id="textSize" type="range" min="12" max="24" value="16"><span class="range-value" id="textSizeValue">16px</span></label>
+                    </div>
+                    <label>Font<select id="fontFamily"><option value="Arial, sans-serif">Arial</option><option value="Verdana, sans-serif">Verdana</option><option value="Georgia, serif">Georgia</option><option value="Tahoma, sans-serif">Tahoma</option><option value="Trebuchet MS, sans-serif">Trebuchet MS</option></select></label>
+                  </div>
+
+                  <div class="control-section">
+                    <div class="control-section-title"><span>03</span><strong>Verification button</strong></div>
+                    <label>Button text<input id="buttonText" value="Verify email"></label>
+                    <label>Button URL variable<input value="{{verification_url}}" disabled></label>
+                    <div class="two-fields">
+                      <label>Button color<input id="buttonColor" type="color" value="#2563eb"></label>
+                      <label>Text color<input id="buttonTextColor" type="color" value="#ffffff"></label>
+                    </div>
+                    <div class="two-fields">
+                      <label>Width<select id="buttonWidth"><option value="auto">Automatic</option><option value="220px">Small</option><option value="280px" selected>Medium</option><option value="100%">Full width</option></select></label>
+                      <label>Align<select id="buttonAlign"><option value="left">Left</option><option value="center" selected>Center</option><option value="right">Right</option></select></label>
+                    </div>
+                    <label>Corner radius<input id="buttonRadius" type="range" min="0" max="40" value="8"><span class="range-value" id="buttonRadiusValue">8px</span></label>
+                  </div>
+
+                  <div class="control-section">
+                    <div class="control-section-title"><span>04</span><strong>Colors & layout</strong></div>
+                    <div class="two-fields">
+                      <label>Brand color<input id="brandColor" type="color" value="#2563eb"></label>
+                      <label>Email background<input id="bgColor" type="color" value="#f4f7fb"></label>
+                    </div>
+                    <label>Card background<input id="cardBackground" type="color" value="#ffffff"></label>
+                    <div class="two-fields">
+                      <label>Card width<select id="cardWidth"><option value="480px">Small</option><option value="560px" selected>Medium</option><option value="640px">Large</option><option value="700px">Extra large</option></select></label>
+                      <label>Radius<input id="cardRadius" type="range" min="0" max="32" value="14"><span class="range-value" id="cardRadiusValue">14px</span></label>
+                    </div>
+                    <label class="check-label"><input id="showDivider" type="checkbox" checked><span>Show divider</span></label>
+                  </div>
+
+                  <div class="control-section">
+                    <div class="control-section-title"><span>05</span><strong>Footer</strong></div>
+                    <label>Footer text<textarea id="footerText" rows="2">© {{projectName}}. All rights reserved.</textarea></label>
+                    <div class="two-fields">
+                      <label>Footer color<input id="footerColor" type="color" value="#6b7280"></label>
+                      <label>Support email<input id="supportEmail" type="email" placeholder="support@example.com"></label>
+                    </div>
+                  </div>
+                </aside>
+
+                <section class="preview-panel">
+                  <div class="preview-panel-head">
+                    <div><span class="mini-label">Live canvas</span><h2>Preview</h2></div>
+                    <div class="preview-modes">
+                      <button type="button" class="previewMode active" data-preview="desktop">Desktop</button>
+                      <button type="button" class="previewMode" data-preview="mobile">Mobile</button>
+                    </div>
+                  </div>
+                  <div class="canvas">
+                    <div class="browser-frame">
+                      <div class="browser-bar"><span></span><span></span><span></span><small>verification email · preview</small></div>
+                      <iframe id="preview" title="Email preview"></iframe>
+                    </div>
+                  </div>
+                  <div class="variablesBox">
+                    <div><span class="mini-label">Personalization</span><strong>Template variables</strong></div>
+                    <p>Use these values when your backend sends the verification email.</p>
+                    <div class="variableList">
+                      <button type="button" class="variable-chip" data-copy="{{name}}">{{name}} <span>copy</span></button>
+                      <button type="button" class="variable-chip" data-copy="{{email}}">{{email}} <span>copy</span></button>
+                      <button type="button" class="variable-chip" data-copy="{{verification_url}}">{{verification_url}} <span>copy</span></button>
+                      <button type="button" class="variable-chip" data-copy="{{projectName}}">{{projectName}} <span>copy</span></button>
+                      <button type="button" class="variable-chip" data-copy="{{companyName}}">{{companyName}} <span>copy</span></button>
+                      <button type="button" class="variable-chip" data-copy="{{supportEmail}}">{{supportEmail}} <span>copy</span></button>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </section>
+
+          <!-- TEMPLATES -->
+          <section class="view" data-section="templates">
+            <div class="page-heading"><div><span class="eyebrow">Templates</span><h1>Start from a style</h1><p>Choose a visual direction, then refine every detail in the studio.</p></div></div>
+            <div class="template-grid">
+              <button type="button" class="template-card" data-style="classic"><span class="template-preview classic-preview"><i></i><b></b><em></em></span><strong>Classic</strong><small>Clean and professional</small></button>
+              <button type="button" class="template-card" data-style="modern"><span class="template-preview modern-preview"><i></i><b></b><em></em></span><strong>Modern</strong><small>Fresh developer SaaS</small></button>
+              <button type="button" class="template-card" data-style="minimal"><span class="template-preview minimal-preview"><i></i><b></b><em></em></span><strong>Minimal</strong><small>Quiet and elegant</small></button>
+              <button type="button" class="template-card" data-style="gradient"><span class="template-preview gradient-preview"><i></i><b></b><em></em></span><strong>Gradient</strong><small>Expressive brand accents</small></button>
+              <button type="button" class="template-card" data-style="dark"><span class="template-preview dark-preview"><i></i><b></b><em></em></span><strong>Dark</strong><small>Developer-focused dark mode</small></button>
+              <button type="button" class="template-card" data-style="corporate"><span class="template-preview corporate-preview"><i></i><b></b><em></em></span><strong>Corporate</strong><small>Business communication</small></button>
+            </div>
+          </section>
+
+          <!-- LOGS -->
+          <section class="view" data-section="logs">
+            <div class="page-heading"><div><span class="eyebrow">Activity</span><h1>Email events</h1><p>Monitor sending activity when your backend exposes event data.</p></div></div>
+            <div class="surface empty-page"><div class="empty-icon">≡</div><h2>No event endpoint connected</h2><p>The current backend provides authentication, projects, and templates, but no logs API. This interface deliberately avoids inventing one.</p><button type="button" class="secondary" data-view="api">View API integration</button></div>
+          </section>
+
+          <!-- API -->
+          <section class="view" data-section="api">
+            <div class="page-heading"><div><span class="eyebrow">Developer</span><h1>API documentation</h1><p>Connect your server to Smartbase without exposing your project key in browser code.</p></div></div>
+            <div class="docs-grid">
+              <article class="surface docs-main">
+                <div class="doc-block"><span class="method post">POST</span><code>/api/v1/send-verification</code><button type="button" class="copy-code" data-copy-api>Copy</button></div>
+                <h2>Send a verification email</h2>
+                <p>Use your project API key from a trusted server environment. The example below matches the endpoint already surfaced by the existing frontend.</p>
+                <div class="code-card"><div class="code-head"><span>cURL</span><button type="button" class="copy-code" data-copy-api>Copy</button></div><pre id="apiExample"></pre></div>
+                <div class="doc-columns"><div><span class="mini-label">Authentication</span><p>Send your project key in the <code>X-Smartbase-Key</code> header.</p></div><div><span class="mini-label">Payload</span><p>Provide the recipient email and optional name in JSON.</p></div></div>
+              </article>
+              <aside class="surface docs-side"><span class="mini-label">Integration checklist</span><h2>Keep your key private.</h2><div class="security-list"><div><span>✓</span><p>Use the key on your server.</p></div><div><span>✓</span><p>Never commit it to frontend JavaScript.</p></div><div><span>✓</span><p>Use your existing verification endpoint.</p></div></div></aside>
+            </div>
+          </section>
+
+          <!-- KEYS -->
+          <section class="view" data-section="keys">
+            <div class="page-heading"><div><span class="eyebrow">Developer</span><h1>API keys</h1><p>Project credentials for server-side Smartbase integration.</p></div></div>
+            <div id="keySurface" class="surface key-surface">
+              <div class="surface-head"><div><span class="mini-label">Selected project</span><h2 id="keyProjectName">No project selected</h2></div><span class="secure-pill">Private credential</span></div>
+              <div class="key-row"><div><span class="mini-label">Project API key</span><code id="projectApiKey">Create a project to generate a key.</code></div><button type="button" class="secondary" id="copyApiKey">Copy</button></div>
+              <div class="security-warning"><strong>Security note</strong><span>Keep this key private. Do not expose it in frontend JavaScript or public repositories.</span></div>
+            </div>
+          </section>
+
+          <!-- SETTINGS -->
+          <section class="view" data-section="settings">
+            <div class="page-heading"><div><span class="eyebrow">Workspace</span><h1>Settings</h1><p>Account and workspace preferences.</p></div></div>
+            <div class="settings-grid">
+              <article class="surface settings-card"><span class="mini-label">Account</span><h2>Developer profile</h2><div class="settings-row"><span>Name</span><strong id="settingsName">Developer</strong></div><div class="settings-row"><span>Email</span><strong id="settingsEmail">—</strong></div></article>
+              <article class="surface settings-card"><span class="mini-label">Project</span><h2>Selected project</h2><div class="settings-row"><span>Project</span><strong id="settingsProject">—</strong></div><div class="settings-row"><span>Website</span><strong id="settingsWebsite">—</strong></div></article>
+              <article class="surface settings-card"><span class="mini-label">Appearance</span><h2>Interface</h2><div class="theme-row"><div><strong>Theme</strong><small>Smartbase uses a dark application shell with light work surfaces.</small></div><span class="theme-pill">Premium dark</span></div></article>
+            </div>
+          </section>
+
+        </main>
       </div>
+    </section>
 
+    <div id="toast" role="status" aria-live="polite"></div>
+  </div>
 
-      <div class="variablesBox">
-
-        <strong>Available variables</strong>
-
-        <div class="variableList">
-          <code>{{name}}</code>
-          <code>{{email}}</code>
-          <code>{{verification_url}}</code>
-          <code>{{projectName}}</code>
-          <code>{{companyName}}</code>
-          <code>{{supportEmail}}</code>
-        </div>
-
-      </div>
-
-    </div>
-
-
-    <!-- API -->
-    <div class="card">
-
-      <h2>API example</h2>
-
-      <pre id="apiExample"></pre>
-
-    </div>
-
-  </section>
-
-  <div id="toast"></div>
-
-</main>
-
-<script src="/app.js"></script>
-
+  <script src="/app.js"></script>
 </body>
 </html>
