@@ -5,6 +5,7 @@ import { handleTestApi } from './test-email.js';
 import { handleFlowApi } from './flow.js';
 import { handleGoogleAuth, handleGoogleExchange, handleProviderApi } from './google-auth.js';
 import { handleGoogleTest } from './google-test.js';
+import { handleSigninApi, brandGoogleRedirect } from './signin-page.js';
 
 export default {
   async fetch(request, env) {
@@ -30,7 +31,15 @@ export default {
       if (path.startsWith('/img/') && request.method === 'GET') {
         return await handleImage(request, env, url);
       }
-      if (path === '/auth/google/test-start' || path === '/api/google-test-result') {
+
+      if (path === '/auth/google/start' || path === '/auth/google/test-start') {
+        const original =
+          path === '/auth/google/start'
+            ? await handleGoogleAuth(request, env, url)
+            : await handleGoogleTest(request, env, url);
+        return await brandGoogleRedirect(original, env, url);
+      }
+      if (path === '/api/google-test-result') {
         return await handleGoogleTest(request, env, url);
       }
       if (path.startsWith('/auth/google/')) {
@@ -41,6 +50,9 @@ export default {
       }
       if (path === '/api/providers' || path === '/api/end-users') {
         return await handleProviderApi(request, env, url);
+      }
+      if (path === '/api/signin-page' || path === '/api/signin-preview') {
+        return await handleSigninApi(request, env, url);
       }
       if (path === '/preview/success' || path === '/api/flow') {
         return await handleFlowApi(request, env, url);
