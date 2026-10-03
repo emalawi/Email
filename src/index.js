@@ -4,6 +4,7 @@ import { handlePublicApi, handleVerify, handleImage } from './public-api.js';
 import { handleTestApi } from './test-email.js';
 import { handleFlowApi } from './flow.js';
 import { handleGoogleAuth, handleGoogleExchange, handleProviderApi } from './google-auth.js';
+import { handleGoogleTest } from './google-test.js';
 
 export default {
   async fetch(request, env) {
@@ -28,6 +29,9 @@ export default {
       }
       if (path.startsWith('/img/') && request.method === 'GET') {
         return await handleImage(request, env, url);
+      }
+      if (path === '/auth/google/test-start' || path === '/api/google-test-result') {
+        return await handleGoogleTest(request, env, url);
       }
       if (path.startsWith('/auth/google/')) {
         return await handleGoogleAuth(request, env, url);

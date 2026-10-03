@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Smartbase SDK demo</title>
+</head>
+<body style="font-family:Arial,sans-serif;padding:24px;max-width:480px;margin:auto">
+<h2>Smartbase SDK demo</h2>
+<p>Open this page as <b>/sdk-demo.html?p=YOUR_PROJECT_ID</b></p>
+<div id="btn"></div>
+<pre id="out" style="white-space:pre-wrap;word-break:break-word"></pre>
+<script src="/smartbase.js"></script>
+<script>
+  var projectId = new URLSearchParams(location.search).get('p');
+  var out = document.getElementById('out');
+  if (!projectId) {
+    out.textContent = 'Add ?p=YOUR_PROJECT_ID to the address.';
+  } else {
+    Smartbase.init({ projectId: projectId });
+    Smartbase.googleButton('#btn');
+    var result = Smartbase.getRedirectResult();
+    if (result && result.code) {
+      out.textContent = 'Got a one-time code (' + result.code.slice(0, 8) +
+        '...). Your server would now send it to /api/v1/google/exchange with the secret key.';
+    } else if (result) {
+      out.textContent = 'Sign-in failed: ' + result.error;
+    }
+  }
+</script>
+</body>
+</html>

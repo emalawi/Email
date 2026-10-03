@@ -1228,3 +1228,305 @@ async function rotateApiKey() {
     if (view === "test") refreshTestView();
   };
 })();
+
+/* Smartbase google view */
+(function () {
+  const anchorNav = document.querySelector('.nav-item[data-view="test"]') ||
+    document.querySelector('.nav-item[data-view="designer"]');
+  const anchorSection = document.querySelector('.view[data-section="test"]') ||
+    document.querySelector('.view[data-section="designer"]');
+  if (!anchorNav || !anchorSection) return;
+
+  viewLabels.google = "Google sign-in";
+
+  const nav = document.createElement("button");
+  nav.type = "button";
+  nav.className = "nav-item";
+  nav.dataset.view = "google";
+  nav.innerHTML = '<span class="nav-icon">G</span>Google sign-in';
+  anchorNav.insertAdjacentElement("afterend", nav);
+  nav.addEventListener("click", () => navigate("google"));
+
+  const section = document.createElement("section");
+  section.className = "view";
+  section.dataset.section = "google";
+  section.innerHTML = `
+    <div class="page-heading"><div>
+      <span class="eyebrow">Authentication</span>
+      <h1>Google sign-in</h1>
+      <p>Let your users sign in with Google and receive their verified profile on your server.</p>
+    </div></div>
+    <article class="surface create-project-card" style="max-width:760px">
+      <div class="surface-head"><div><span class="mini-label">Project</span><h2 id="gProjectName">No project selected</h2></div></div>
+      <div style="display:grid;gap:14px">
+        <label class="check-label"><input id="gEnabled" type="checkbox"> Enable Google sign-in</label>
+        <p class="form-helper" id="gNotice" style="margin:0"></p>
+        <label>Project ID (public, safe to put in your website)
+          <input id="gProjectId" type="text" readonly>
+        </label>
+        <button class="secondary" id="gCopyId" type="button">Copy project ID</button>
+        <button class="primary" id="gTest" type="button">Test Google sign-in</button>
+        <div id="gTestResult"></div>
+      </div>
+    </article>
+    <article class="surface" style="max-width:760px;margin-top:14px">
+      <div class="surface-head"><div><span class="mini-label">Integrate</span><h2>Code for your developers</h2></div></div>
+      <div id="gSnippets"></div>
+    </article>
+    <article class="surface" style="max-width:760px;margin-top:14px">
+      <div class="surface-head"><div><span class="mini-label">Signed-in users</span><h2 id="gUserTotal">0 users</h2></div></div>
+      <div id="gUsers"></div>
+    </article>`;
+  anchorSection.insertAdjacentElement("afterend", section);
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      const area = document.createElement("textarea");
+      area.value = text;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    toast("Copied.");
+  }
+
+  function snippets(origin, projectId) {
+    const client = [
+      '<div id="google-login"></div>',
+      '<script src="' + origin + '/smartbase.js"></script>',
+      "<script>",
+      '  Smartbase.init({ projectId: "' + projectId + '" });',
+      "",
+      "  // Adds a ready-made Google button (or call Smartbase.signInWithGoogle() yourself)",
+      '  Smartbase.googleButton("#google-login");',
+      "",
+      "  // Runs when the user comes back from Google",
+      "  var result = Smartbase.getRedirectResult();",
+      "  if (result && result.code) {",
+      "    // Send the one-time code to YOUR server, never use it in the browser",
+      '    fetch("/api/login/google", {',
+      '      method: "POST",',
+      '      headers: { "Content-Type": "application/json" },',
+      "      body: JSON.stringify({ code: result.code })",
+      "    });",
+      "  } else if (result) {",
+      '    console.log("Sign-in failed:", result.error);',
+      "  }",
+      "</script>"
+    ].join("\n");
+
+    const node = [
+      "// POST /api/login/google  (runs on YOUR server)",
+      "// Keep the key in an environment variable, never in browser code.",
+      'const res = await fetch("' + origin + '/api/v1/google/exchange", {',
+      '  method: "POST",',
+      "  headers: {",
+      '    "Content-Type": "application/json",',
+      '    "X-Smartbase-Key": process.env.SMARTBASE_KEY',
+      "  },",
+      "  body: JSON.stringify({ code: req.body.code })",
+      "});",
+      "const data = await res.json();",
+      "if (!data.success) return res.status(401).json({ error: data.message });",
+      "",
+      "// data.user = { id, email, email_verified, name, picture, ... }",
+      "// Find or create YOUR user by data.user.id, then start your own session."
+    ].join("\n");
+
+    const php = [
+      "<?php",
+      "// login-google.php  (runs on YOUR server)",
+      '$ch = curl_init("' + origin + '/api/v1/google/exchange");',
+      "curl_setopt_array($ch, [",
+      "  CURLOPT_POST => true,",
+      "  CURLOPT_RETURNTRANSFER => true,",
+      "  CURLOPT_HTTPHEADER => [",
+      '    "Content-Type: application/json",',
+      '    "X-Smartbase-Key: " . getenv("SMARTBASE_KEY")',
+      "  ],",
+      '  CURLOPT_POSTFIELDS => json_encode(["code" => $_POST["code"]])',
+      "]);",
+      "$data = json_decode(curl_exec($ch), true);",
+      'if (empty($data["success"])) { http_response_code(401); exit; }',
+      "",
+      '// $data["user"] has id, email, email_verified, name, picture',
+      "// Find or create YOUR user, then start your own session."
+    ].join("\n");
+
+    return [
+      {title: "1. Your website (browser)", text: client},
+      {title: "2a. Your server (Node.js)", text: node},
+      {title: "2b. Your server (PHP)", text: php}
+    ];
+  }
+
+  function renderSnippets(origin, projectId) {
+    const box = $("gSnippets");
+    box.innerHTML = "";
+    snippets(origin, projectId).forEach((item) => {
+      const wrap = document.createElement("div");
+      wrap.style.marginTop = "16px";
+      const head = document.createElement("div");
+      head.style.cssText = "display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px";
+      const title = document.createElement("strong");
+      title.style.fontSize = "12px";
+      title.textContent = item.title;
+      const copy = document.createElement("button");
+      copy.type = "button";
+      copy.className = "secondary";
+      copy.style.cssText = "padding:7px 11px;font-size:11px";
+      copy.textContent = "Copy";
+      copy.addEventListener("click", () => copyText(item.text));
+      head.append(title, copy);
+      const pre = document.createElement("pre");
+      pre.style.cssText = "margin:0;padding:12px;border-radius:9px;background:#11151b;color:#e5e8ed;font-size:11px;overflow:auto;white-space:pre";
+      pre.textContent = item.text;
+      wrap.append(head, pre);
+      box.appendChild(wrap);
+    });
+  }
+
+  function renderUsers(data) {
+    $("gUserTotal").textContent = data.total + (data.total === 1 ? " user" : " users");
+    const box = $("gUsers");
+    box.innerHTML = "";
+    if (!data.users.length) {
+      box.textContent = "No users yet. They appear here after someone signs in with Google.";
+      return;
+    }
+    data.users.forEach((u) => {
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #edf0f3;font-size:12px";
+      const left = document.createElement("div");
+      const name = document.createElement("strong");
+      name.textContent = u.name || u.email;
+      const mail = document.createElement("div");
+      mail.style.cssText = "color:#8a919b;font-size:11px;margin-top:3px;word-break:break-all";
+      mail.textContent = u.email + (u.email_verified ? " ✓" : "");
+      left.append(name, mail);
+      const right = document.createElement("div");
+      right.style.cssText = "color:#8a919b;font-size:10px;text-align:right;white-space:nowrap";
+      right.textContent = "Last login " + new Date(u.last_login_at).toLocaleDateString();
+      row.append(left, right);
+      box.appendChild(row);
+    });
+  }
+
+  function showTestResult(user, error) {
+    const box = $("gTestResult");
+    box.innerHTML = "";
+    const div = document.createElement("div");
+    if (error) {
+      div.className = "security-warning";
+      div.innerHTML = "<strong>Test failed</strong><span></span>";
+      div.querySelector("span").textContent = error;
+    } else {
+      div.className = "successBox";
+      div.innerHTML = "<strong>✓ Google sign-in works</strong><code></code>";
+      const code = div.querySelector("code");
+      code.style.whiteSpace = "pre";
+      code.textContent = JSON.stringify(user, null, 2);
+    }
+    box.appendChild(div);
+  }
+
+  async function loadGoogleView() {
+    if (!currentProject) {
+      $("gProjectName").textContent = "No project selected";
+      $("gEnabled").disabled = true;
+      $("gTest").disabled = true;
+      $("gNotice").textContent = "Create or select a project first.";
+      return;
+    }
+    $("gProjectName").textContent = currentProject.name;
+    $("gProjectId").value = currentProject.id;
+    $("gEnabled").disabled = false;
+    $("gTest").disabled = false;
+
+    const id = encodeURIComponent(currentProject.id);
+    const [prov, users] = await Promise.all([
+      api("/api/providers?projectId=" + id),
+      api("/api/end-users?projectId=" + id)
+    ]);
+    $("gEnabled").checked = !!prov.google.enabled;
+    if (!prov.google.configured) {
+      $("gNotice").textContent = "This server is missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET.";
+    } else if (!prov.website) {
+      $("gNotice").textContent = "Add a website URL to this project. Google sign-in only redirects back to your website.";
+    } else {
+      $("gNotice").textContent = "Users can sign in from pages on " + prov.website;
+    }
+    renderSnippets(location.origin, currentProject.id);
+    renderUsers(users);
+  }
+
+  $("gEnabled").addEventListener("change", async () => {
+    if (!currentProject) return;
+    const want = $("gEnabled").checked;
+    try {
+      await api("/api/providers", {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({projectId: currentProject.id, google: want})
+      });
+      toast(want ? "Google sign-in enabled." : "Google sign-in disabled.");
+    } catch (err) {
+      $("gEnabled").checked = !want;
+      toast(err.message);
+    }
+  });
+
+  $("gCopyId").addEventListener("click", () => {
+    if (currentProject) copyText(currentProject.id);
+  });
+
+  $("gTest").addEventListener("click", () => {
+    if (!currentProject) return;
+    if (!$("gEnabled").checked) {
+      toast("Turn on Google sign-in first.");
+      return;
+    }
+    location.assign("/auth/google/test-start?project=" + encodeURIComponent(currentProject.id));
+  });
+
+  const baseNavigate = navigate;
+  navigate = function (view) {
+    baseNavigate(view);
+    if (view === "google") loadGoogleView().catch((err) => toast(err.message));
+  };
+
+  const params = new URLSearchParams(location.search);
+  if (params.get("google_test") === "1" && (params.get("smartbase_code") || params.get("smartbase_error"))) {
+    const code = params.get("smartbase_code");
+    const failure = params.get("smartbase_error");
+    history.replaceState(null, "", location.pathname);
+    let tries = 0;
+    const timer = setInterval(async () => {
+      tries++;
+      const ready = currentProject && !$("dashboard").classList.contains("hidden");
+      if (!ready && tries < 40) return;
+      clearInterval(timer);
+      if (!ready) return;
+      navigate("google");
+      if (failure) {
+        showTestResult(null, "Google returned: " + failure);
+        return;
+      }
+      try {
+        const data = await api("/api/google-test-result", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({code})
+        });
+        showTestResult(data.user, null);
+        const users = await api("/api/end-users?projectId=" + encodeURIComponent(currentProject.id));
+        renderUsers(users);
+      } catch (err) {
+        showTestResult(null, err.message);
+      }
+    }, 300);
+  }
+})();
