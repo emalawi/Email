@@ -1,6 +1,7 @@
 import { json, fail, randomHex, sha256Hex, safeEqual, cleanLine, getCookie } from './util.js';
 import { escapeHtml } from './design.js';
 import { getDeveloper } from './session.js';
+import { encryptSecret, getGoogleCreds } from './google-creds.js';
 
 const STATE_MINUTES = 10;
 const CODE_SECONDS = 120;
@@ -46,14 +47,14 @@ function decodeJwtPayload(jwt) {
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 
-async function fetchGoogleProfile(env, url, code) {
+async function fetchGoogleProfile(creds, url, code) {
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       code,
-      client_id: env.GOOGLE_CLIENT_ID,
-      client_secret: env.GOOGLE_CLIENT_SECRET,
+      client_id: creds.clientId,
+      client_secret: creds.clientSecret,
       redirect_uri: `${url.origin}/auth/google/callback`,
       grant_type: 'authorization_code',
     }),
@@ -65,7 +66,7 @@ async function fetchGoogleProfile(env, url, code) {
 
   const p = decodeJwtPayload(data.id_token);
   const issuerOk = p && (p.iss === 'https://accounts.google.com' || p.iss === 'accounts.google.com');
-  if (!p || !issuerOk || p.aud !== env.GOOGLE_CLIENT_ID) {
+  if (!p || !issuerOk || p.aud !== creds.clientId) {
     throw new Error('Google token did not match this app');
   }
   if (!p.exp || p.exp * 1000 < Date.now()) throw new Error('Google token expired');
@@ -127,10 +128,6 @@ async function saveUser(env, projectId, profile) {
 }
 
 async function startGoogle(env, url) {
-  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
-    return errorPage('Not configured', 'Google sign-in is not configured on this server.', 500);
-  }
-
   const projectId = url.searchParams.get('project') || '';
   const redirectUrl = url.searchParams.get('redirect_url') || '';
   const clientState = cleanLine(url.searchParams.get('state'), 500);
@@ -139,7 +136,7 @@ async function startGoogle(env, url) {
     return errorPage('Invalid request', 'The project is missing or invalid.');
   }
   const project = await env.DB.prepare(
-    'SELECT id, name, website, google_enabled FROM projects WHERE id = ?'
+    'SELECT id, name, website, google_enabled, google_client_id, google_client_secret_enc FROM projects WHERE id = ?'
   )
     .bind(projectId)
     .first();
@@ -148,6 +145,10 @@ async function startGoogle(env, url) {
   }
   if (!project.website) {
     return errorPage('Website missing', 'This project needs a website URL before users can sign in.');
+  }
+  const creds = await getGoogleCreds(env, project);
+  if (!creds) {
+    return errorPage('Not configured', 'Google sign-in is not configured for this project.', 500);
   }
 
   let target;
@@ -188,7 +189,7 @@ async function startGoogle(env, url) {
     .run();
 
   const google = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-  google.searchParams.set('client_id', env.GOOGLE_CLIENT_ID);
+  google.searchParams.set('client_id', creds.clientId);
   google.searchParams.set('redirect_uri', `${url.origin}/auth/google/callback`);
   google.searchParams.set('response_type', 'code');
   google.searchParams.set('scope', 'openid email profile');
@@ -227,14 +228,19 @@ async function googleCallback(request, env, url) {
   const code = url.searchParams.get('code');
   if (!code) return back({ smartbase_error: 'invalid_request' });
 
-  const project = await env.DB.prepare('SELECT id, google_enabled FROM projects WHERE id = ?')
+  const project = await env.DB.prepare(
+    'SELECT id, google_enabled, google_client_id, google_client_secret_enc FROM projects WHERE id = ?'
+  )
     .bind(row.project_id)
     .first();
   if (!project || !project.google_enabled) return back({ smartbase_error: 'provider_disabled' });
 
+  const creds = await getGoogleCreds(env, project);
+  if (!creds) return back({ smartbase_error: 'not_configured' });
+
   let profile;
   try {
-    profile = await fetchGoogleProfile(env, url, code);
+    profile = await fetchGoogleProfile(creds, url, code);
   } catch (err) {
     console.error(err.message);
     return back({ smartbase_error: 'google_error' });
@@ -320,7 +326,7 @@ export async function handleGoogleExchange(request, env) {
 
 async function ownedProject(env, developer, projectId) {
   return await env.DB.prepare(
-    'SELECT id, name, website, google_enabled FROM projects WHERE id = ? AND user_id = ?'
+    'SELECT id, name, website, google_enabled, google_client_id, google_client_secret_enc FROM projects WHERE id = ? AND user_id = ?'
   )
     .bind(String(projectId ?? ''), developer.id)
     .first();
@@ -338,6 +344,7 @@ export async function handleProviderApi(request, env, url) {
   if (url.pathname === '/api/providers' && request.method === 'GET') {
     const project = await ownedProject(env, developer, url.searchParams.get('projectId'));
     if (!project) return fail('Project not found.', 404);
+    const custom = !!(project.google_client_id && project.google_client_secret_enc);
     return json({
       success: true,
       projectId: project.id,
@@ -345,7 +352,9 @@ export async function handleProviderApi(request, env, url) {
       callbackUrl: `${url.origin}/auth/google/callback`,
       google: {
         enabled: !!project.google_enabled,
-        configured: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
+        configured: custom || !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
+        custom,
+        clientId: custom ? project.google_client_id : '',
       },
     });
   }
@@ -355,14 +364,55 @@ export async function handleProviderApi(request, env, url) {
     if (!body) return fail('Invalid request.');
     const project = await ownedProject(env, developer, body.projectId);
     if (!project) return fail('Project not found.', 404);
-    const enabled = body.google === true;
-    if (enabled && !project.website) {
-      return fail('Set a website URL on this project before enabling Google sign-in.');
+
+    if (typeof body.google === 'boolean') {
+      if (body.google && !project.website) {
+        return fail('Set a website URL on this project before enabling Google sign-in.');
+      }
+      await env.DB.prepare('UPDATE projects SET google_enabled = ? WHERE id = ?')
+        .bind(body.google ? 1 : 0, project.id)
+        .run();
     }
-    await env.DB.prepare('UPDATE projects SET google_enabled = ? WHERE id = ?')
-      .bind(enabled ? 1 : 0, project.id)
-      .run();
-    return json({ success: true, google: { enabled } });
+
+    if (body.clearCredentials === true) {
+      await env.DB.prepare(
+        "UPDATE projects SET google_client_id = '', google_client_secret_enc = '' WHERE id = ?"
+      )
+        .bind(project.id)
+        .run();
+    } else if (body.googleClientId !== undefined || body.googleClientSecret !== undefined) {
+      const clientId = String(body.googleClientId ?? '').trim();
+      const clientSecret = String(body.googleClientSecret ?? '').trim();
+      if (!/^[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com$/.test(clientId)) {
+        return fail('That does not look like a Google Client ID (it ends with .apps.googleusercontent.com).');
+      }
+      if (!clientSecret && !project.google_client_secret_enc) {
+        return fail('Enter the Client secret too.');
+      }
+      if (clientSecret && (clientSecret.length < 8 || clientSecret.length > 200 || /\s/.test(clientSecret))) {
+        return fail('That does not look like a valid Client secret.');
+      }
+      if (clientSecret) {
+        let encrypted;
+        try {
+          encrypted = await encryptSecret(env, clientSecret, project.id);
+        } catch (err) {
+          console.error(err.message);
+          return fail('The server cannot store secrets yet. Add the CREDENTIAL_KEY secret.', 500);
+        }
+        await env.DB.prepare(
+          'UPDATE projects SET google_client_id = ?, google_client_secret_enc = ? WHERE id = ?'
+        )
+          .bind(clientId, encrypted, project.id)
+          .run();
+      } else {
+        await env.DB.prepare('UPDATE projects SET google_client_id = ? WHERE id = ?')
+          .bind(clientId, project.id)
+          .run();
+      }
+    }
+
+    return json({ success: true });
   }
 
   if (url.pathname === '/api/end-users' && request.method === 'GET') {

@@ -1530,3 +1530,104 @@ async function rotateApiKey() {
     }, 300);
   }
 })();
+
+/* Smartbase google credentials */
+(function () {
+  const view = document.querySelector('.view[data-section="google"]');
+  if (!view) return;
+  const firstCard = view.querySelector("article");
+  if (!firstCard) return;
+
+  const card = document.createElement("article");
+  card.className = "surface create-project-card";
+  card.style.cssText = "max-width:760px;margin-top:14px";
+  card.innerHTML = `
+    <div class="surface-head"><div><span class="mini-label">Branding</span><h2>Your own Google app (optional)</h2></div></div>
+    <div style="display:grid;gap:14px">
+      <p class="form-helper" id="gCredStatus" style="margin:0"></p>
+      <p class="form-helper" style="margin:0">With your own Google app, the Google login screen shows <b>your</b> app name and logo instead of Smartbase's. In Google Cloud Console create an OAuth client of type <b>Web application</b>, add the redirect URI below, then paste the client ID and secret here. The secret is encrypted before it is stored.</p>
+      <label>Authorised redirect URI to add in Google
+        <input id="gCallback" type="text" readonly>
+      </label>
+      <button class="secondary" id="gCopyCallback" type="button">Copy redirect URI</button>
+      <label>Client ID
+        <input id="gClientId" type="text" placeholder="123456-abc.apps.googleusercontent.com" autocomplete="off">
+      </label>
+      <label>Client secret
+        <input id="gClientSecret" type="password" placeholder="Paste the client secret" autocomplete="new-password">
+      </label>
+      <button class="primary" id="gCredSave" type="button">Save Google app</button>
+      <button class="secondary" id="gCredClear" type="button">Use Smartbase's Google app instead</button>
+    </div>`;
+  firstCard.insertAdjacentElement("afterend", card);
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      const area = document.createElement("textarea");
+      area.value = text;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    toast("Copied.");
+  }
+
+  async function loadCreds() {
+    if (!currentProject) return;
+    const prov = await api("/api/providers?projectId=" + encodeURIComponent(currentProject.id));
+    $("gCallback").value = prov.callbackUrl;
+    $("gClientId").value = prov.google.clientId || "";
+    $("gClientSecret").value = "";
+    $("gClientSecret").placeholder = prov.google.custom ? "Saved. Leave empty to keep it" : "Paste the client secret";
+    $("gCredStatus").textContent = prov.google.custom
+      ? "Using your own Google app: " + prov.google.clientId
+      : "Using Smartbase's shared Google app.";
+    $("gCredClear").style.display = prov.google.custom ? "" : "none";
+  }
+
+  $("gCopyCallback").addEventListener("click", () => copyText($("gCallback").value));
+
+  $("gCredSave").addEventListener("click", async () => {
+    if (!currentProject) { toast("Create or select a project first."); return; }
+    try {
+      await api("/api/providers", {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          projectId: currentProject.id,
+          googleClientId: $("gClientId").value,
+          googleClientSecret: $("gClientSecret").value
+        })
+      });
+      toast("Google app saved.");
+      await loadCreds();
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+
+  $("gCredClear").addEventListener("click", async () => {
+    if (!currentProject) return;
+    if (!confirm("Go back to Smartbase's shared Google app? Your saved client ID and secret will be deleted.")) return;
+    try {
+      await api("/api/providers", {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({projectId: currentProject.id, clearCredentials: true})
+      });
+      toast("Using Smartbase's Google app.");
+      await loadCreds();
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+
+  const baseNavigate = navigate;
+  navigate = function (view) {
+    baseNavigate(view);
+    if (view === "google") loadCreds().catch((err) => toast(err.message));
+  };
+})();

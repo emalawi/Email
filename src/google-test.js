@@ -1,6 +1,7 @@
 import { json, fail, randomHex, sha256Hex } from './util.js';
 import { getDeveloper } from './session.js';
 import { escapeHtml } from './design.js';
+import { getGoogleCreds } from './google-creds.js';
 
 const STATE_MINUTES = 10;
 
@@ -15,15 +16,12 @@ function plainPage(message, status) {
 }
 
 async function testStart(request, env, url) {
-  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
-    return plainPage('Google sign-in is not configured on this server.', 500);
-  }
   const developer = await getDeveloper(request, env);
   if (!developer) return plainPage('Please log in to the dashboard first.', 401);
 
   const projectId = url.searchParams.get('project') || '';
   const project = await env.DB.prepare(
-    'SELECT id, google_enabled FROM projects WHERE id = ? AND user_id = ?'
+    'SELECT id, google_enabled, google_client_id, google_client_secret_enc FROM projects WHERE id = ? AND user_id = ?'
   )
     .bind(projectId, developer.id)
     .first();
@@ -31,6 +29,8 @@ async function testStart(request, env, url) {
   if (!project.google_enabled) {
     return plainPage('Turn on Google sign-in for this project first.', 400);
   }
+  const creds = await getGoogleCreds(env, project);
+  if (!creds) return plainPage('Google sign-in is not configured for this project.', 500);
 
   const now = new Date();
   const state = randomHex(32);
@@ -48,7 +48,7 @@ async function testStart(request, env, url) {
     .run();
 
   const google = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-  google.searchParams.set('client_id', env.GOOGLE_CLIENT_ID);
+  google.searchParams.set('client_id', creds.clientId);
   google.searchParams.set('redirect_uri', `${url.origin}/auth/google/callback`);
   google.searchParams.set('response_type', 'code');
   google.searchParams.set('scope', 'openid email profile');
