@@ -3,6 +3,7 @@ import { handleDashboardApi } from './dashboard.js';
 import { handlePublicApi, handleVerify, handleImage } from './public-api.js';
 import { handleTestApi } from './test-email.js';
 import { handleFlowApi } from './flow.js';
+import { handleGoogleAuth, handleGoogleExchange, handleProviderApi } from './google-auth.js';
 
 export default {
   async fetch(request, env) {
@@ -27,6 +28,15 @@ export default {
       }
       if (path.startsWith('/img/') && request.method === 'GET') {
         return await handleImage(request, env, url);
+      }
+      if (path.startsWith('/auth/google/')) {
+        return await handleGoogleAuth(request, env, url);
+      }
+      if (path === '/api/v1/google/exchange') {
+        return await handleGoogleExchange(request, env);
+      }
+      if (path === '/api/providers' || path === '/api/end-users') {
+        return await handleProviderApi(request, env, url);
       }
       if (path === '/preview/success' || path === '/api/flow') {
         return await handleFlowApi(request, env, url);
