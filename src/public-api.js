@@ -66,7 +66,7 @@ async function getAccessToken(env) {
   return cachedToken.value;
 }
 
-async function sendGmail(env, to, subject, html, fromName, replyTo) {
+export async function sendGmail(env, to, subject, html, fromName, replyTo) {
   const accessToken = await getAccessToken(env);
   const lines = [];
   if (env.SENDER_EMAIL) {

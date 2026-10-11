@@ -1,7 +1,11 @@
 import { json, fail, randomHex, sha256Hex, safeEqual, cleanLine, getCookie } from './util.js';
 import { escapeHtml } from './design.js';
 import { getDeveloper } from './session.js';
-import { encryptSecret, getGoogleCreds } from './google-creds.js';
+import { encryptSecret, decryptSecret, getGoogleCreds } from './google-creds.js';
+import { getSettings } from './settings.js';
+import { validDeviceId, deviceHashFor, checkDevice, logBlocked, recordLink } from './account-control.js';
+import { redirectUri, cookiePath } from './domain.js';
+import { deliverUser } from './storage-router.js';
 
 const STATE_MINUTES = 10;
 const CODE_SECONDS = 120;
@@ -9,8 +13,8 @@ const MAX_PENDING_STATES = 300;
 const COOKIE = 'sb_oauth';
 const COOKIE_PATH = '/auth/google';
 
-function setCookie(value, maxAge) {
-  return `${COOKIE}=${value}; HttpOnly; Secure; SameSite=Lax; Path=${COOKIE_PATH}; Max-Age=${maxAge}`;
+function setCookie(value, maxAge, path = COOKIE_PATH) {
+  return `${COOKIE}=${value}; HttpOnly; Secure; SameSite=Lax; Path=${path}; Max-Age=${maxAge}`;
 }
 
 function errorPage(title, message, status = 400) {
@@ -47,7 +51,7 @@ function decodeJwtPayload(jwt) {
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 
-async function fetchGoogleProfile(creds, url, code) {
+async function fetchGoogleProfile(creds, redirect, code) {
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -55,7 +59,7 @@ async function fetchGoogleProfile(creds, url, code) {
       code,
       client_id: creds.clientId,
       client_secret: creds.clientSecret,
-      redirect_uri: `${url.origin}/auth/google/callback`,
+      redirect_uri: redirect,
       grant_type: 'authorization_code',
     }),
   });
@@ -82,14 +86,14 @@ async function fetchGoogleProfile(creds, url, code) {
   };
 }
 
-async function saveUser(env, projectId, profile) {
+async function saveUser(env, projectId, profile, anonymize) {
   const now = new Date().toISOString();
   const find = () =>
-    env.DB.prepare(
-      'SELECT id FROM end_users WHERE project_id = ? AND provider = ? AND provider_user_id = ?'
-    )
+    env.DB.prepare('SELECT id, created_at FROM end_users WHERE project_id = ? AND provider = ? AND provider_user_id = ?')
       .bind(projectId, 'google', profile.sub)
       .first();
+  // When user data is stored elsewhere (Smartbase database / external gateway) the platform keeps no personal details.
+  const keep = anonymize ? { email: '', name: '', picture: '' } : { email: profile.email, name: profile.name, picture: profile.picture };
 
   let existing = await find();
   if (!existing) {
@@ -100,31 +104,22 @@ async function saveUser(env, projectId, profile) {
          (id, project_id, provider, provider_user_id, email, email_verified, name, picture, created_at, last_login_at)
          VALUES (?, ?, 'google', ?, ?, ?, ?, ?, ?, ?)`
       )
-        .bind(
-          id,
-          projectId,
-          profile.sub,
-          profile.email,
-          profile.emailVerified ? 1 : 0,
-          profile.name,
-          profile.picture,
-          now,
-          now
-        )
+        .bind(id, projectId, profile.sub, keep.email, anonymize ? 0 : profile.emailVerified ? 1 : 0, keep.name, keep.picture, now, now)
         .run();
-      return id;
+      return { id, isNew: true, createdAt: now };
     } catch (err) {
       existing = await find();
       if (!existing) throw err;
     }
   }
 
-  await env.DB.prepare(
-    'UPDATE end_users SET email = ?, email_verified = ?, name = ?, picture = ?, last_login_at = ? WHERE id = ?'
-  )
-    .bind(profile.email, profile.emailVerified ? 1 : 0, profile.name, profile.picture, now, existing.id)
-    .run();
-  return existing.id;
+  // scrub any personal details stored back when this project used platform storage
+  if (anonymize) await env.DB.prepare("UPDATE end_users SET email = '', email_verified = 0, name = '', picture = '', last_login_at = ? WHERE id = ?").bind(now, existing.id).run();
+  else
+    await env.DB.prepare('UPDATE end_users SET email = ?, email_verified = ?, name = ?, picture = ?, last_login_at = ? WHERE id = ?')
+      .bind(profile.email, profile.emailVerified ? 1 : 0, profile.name, profile.picture, now, existing.id)
+      .run();
+  return { id: existing.id, isNew: false, createdAt: existing.created_at };
 }
 
 async function startGoogle(env, url) {
@@ -164,6 +159,8 @@ async function startGoogle(env, url) {
   const now = new Date();
   await env.DB.prepare('DELETE FROM oauth_states WHERE expires_at < ?').bind(now.toISOString()).run();
   await env.DB.prepare('DELETE FROM auth_codes WHERE expires_at < ?').bind(now.toISOString()).run();
+  await env.DB.prepare('DELETE FROM oauth_extra WHERE expires_at < ?').bind(now.toISOString()).run();
+  await env.DB.prepare('DELETE FROM code_profiles WHERE expires_at < ?').bind(now.toISOString()).run();
 
   const pending = await env.DB.prepare(
     'SELECT COUNT(*) AS n FROM oauth_states WHERE project_id = ? AND expires_at > ?'
@@ -174,6 +171,8 @@ async function startGoogle(env, url) {
     return errorPage('Too many attempts', 'Please try again in a few minutes.', 429);
   }
 
+  const settings = await getSettings(env, project.id);
+  const deviceId = validDeviceId(url.searchParams.get('device')) ? url.searchParams.get('device') : '';
   const state = randomHex(32);
   await env.DB.prepare(
     'INSERT INTO oauth_states (state_hash, project_id, redirect_url, client_state, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)'
@@ -187,16 +186,19 @@ async function startGoogle(env, url) {
       new Date(now.getTime() + STATE_MINUTES * 60000).toISOString()
     )
     .run();
+  await env.DB.prepare('INSERT INTO oauth_extra (state_hash, device_id, expires_at) VALUES (?, ?, ?)')
+    .bind(await sha256Hex(state), deviceId, new Date(now.getTime() + STATE_MINUTES * 60000).toISOString())
+    .run();
 
   const google = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   google.searchParams.set('client_id', creds.clientId);
-  google.searchParams.set('redirect_uri', `${url.origin}/auth/google/callback`);
+  google.searchParams.set('redirect_uri', redirectUri(settings, url));
   google.searchParams.set('response_type', 'code');
   google.searchParams.set('scope', 'openid email profile');
   google.searchParams.set('state', state);
   google.searchParams.set('prompt', 'select_account');
 
-  return redirect(google.toString(), { 'Set-Cookie': setCookie(state, STATE_MINUTES * 60) });
+  return redirect(google.toString(), { 'Set-Cookie': setCookie(state, STATE_MINUTES * 60, cookiePath(url)) });
 }
 
 async function googleCallback(request, env, url) {
@@ -212,6 +214,8 @@ async function googleCallback(request, env, url) {
   )
     .bind(stateHash)
     .first();
+  const extra = await env.DB.prepare('SELECT device_id FROM oauth_extra WHERE state_hash = ?').bind(stateHash).first();
+  await env.DB.prepare('DELETE FROM oauth_extra WHERE state_hash = ?').bind(stateHash).run();
   await env.DB.prepare('DELETE FROM oauth_states WHERE state_hash = ?').bind(stateHash).run();
   if (!row || new Date(row.expires_at) <= new Date()) {
     return errorPage('Sign-in expired', 'Please go back to the website and try signing in again.');
@@ -221,7 +225,7 @@ async function googleCallback(request, env, url) {
     const dest = new URL(row.redirect_url);
     for (const [key, value] of Object.entries(params)) dest.searchParams.set(key, value);
     if (row.client_state) dest.searchParams.set('smartbase_state', row.client_state);
-    return redirect(dest.toString(), { 'Set-Cookie': setCookie('', 0) });
+    return redirect(dest.toString(), { 'Set-Cookie': setCookie('', 0, cookiePath(url)) });
   };
 
   if (url.searchParams.get('error')) return back({ smartbase_error: 'access_denied' });
@@ -237,16 +241,32 @@ async function googleCallback(request, env, url) {
 
   const creds = await getGoogleCreds(env, project);
   if (!creds) return back({ smartbase_error: 'not_configured' });
+  const settings = await getSettings(env, project.id);
 
   let profile;
   try {
-    profile = await fetchGoogleProfile(creds, url, code);
+    profile = await fetchGoogleProfile(creds, redirectUri(settings, url), code);
   } catch (err) {
     console.error(err.message);
     return back({ smartbase_error: 'google_error' });
   }
 
-  const userId = await saveUser(env, project.id, profile);
+  // account control: "one account, one device"
+  const ctl = settings.accountControl;
+  const deviceHash = extra && validDeviceId(extra.device_id) ? await deviceHashFor(project.id, extra.device_id) : null;
+  if (ctl.enabled) {
+    const known = await env.DB.prepare('SELECT id FROM end_users WHERE project_id = ? AND provider = ? AND provider_user_id = ?').bind(project.id, 'google', profile.sub).first();
+    const verdict = await checkDevice(env, project.id, deviceHash, known ? known.id : null, ctl.mode);
+    if (!verdict.allowed) {
+      await logBlocked(env, project.id, deviceHash, known ? known.id : null);
+      return back({ smartbase_error: verdict.error });
+    }
+  }
+  const external = settings.storage.mode !== 'default';
+  const saved = await saveUser(env, project.id, profile, external);
+  const userId = saved.id;
+  if (ctl.enabled && deviceHash) await recordLink(env, project.id, deviceHash, userId);
+  if (external) await deliverUser(env, project, settings, { profile, endUserId: userId, deviceHash: ctl.enabled ? deviceHash : null, isNew: saved.isNew });
 
   const authCode = randomHex(32);
   const now = new Date();
@@ -261,6 +281,14 @@ async function googleCallback(request, env, url) {
       new Date(now.getTime() + CODE_SECONDS * 1000).toISOString()
     )
     .run();
+  if (external) {
+    const codeHash = await sha256Hex(authCode);
+    const stamp = new Date().toISOString();
+    const snapshot = { provider_user_id: profile.sub, email: profile.email, email_verified: !!profile.emailVerified, name: profile.name, picture: profile.picture, created_at: saved.createdAt, last_login_at: stamp };
+    await env.DB.prepare('INSERT INTO code_profiles (code_hash, profile_enc, expires_at) VALUES (?, ?, ?)')
+      .bind(codeHash, await encryptSecret(env, JSON.stringify(snapshot), codeHash), new Date(now.getTime() + CODE_SECONDS * 1000).toISOString())
+      .run();
+  }
 
   return back({ smartbase_code: authCode });
 }
@@ -314,6 +342,18 @@ export async function handleGoogleExchange(request, env) {
     .bind(await sha256Hex(code), project.id, now)
     .first();
   if (!row) return fail('Code is invalid, expired, or already used.', 400);
+
+  const codeHash = await sha256Hex(code);
+  const stored = await env.DB.prepare('SELECT profile_enc FROM code_profiles WHERE code_hash = ?').bind(codeHash).first();
+  if (stored) {
+    await env.DB.prepare('DELETE FROM code_profiles WHERE code_hash = ?').bind(codeHash).run();
+    try {
+      const p = JSON.parse(await decryptSecret(env, stored.profile_enc, codeHash));
+      return json({ success: true, user: { id: row.end_user_id, provider: 'google', ...p } });
+    } catch (err) {
+      return fail('Could not read the sign-in data. Please sign in again.', 500);
+    }
+  }
 
   const user = await env.DB.prepare(
     'SELECT id, provider, provider_user_id, email, email_verified, name, picture, created_at, last_login_at FROM end_users WHERE id = ?'

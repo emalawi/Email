@@ -30,7 +30,23 @@
     '<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>' +
     '</svg>';
 
+  // Stable per-browser id used by "one account, one device" (kept in localStorage + a first-party cookie).
+  var DEVICE_KEY = 'smartbase_device_id';
+  function deviceId() {
+    var id = '';
+    try { id = localStorage.getItem(DEVICE_KEY) || ''; } catch (e) {}
+    if (!id) {
+      var m = document.cookie.match(new RegExp('(?:^|; )' + DEVICE_KEY + '=([A-Za-z0-9_-]{16,64})'));
+      id = m ? m[1] : '';
+    }
+    if (!/^[A-Za-z0-9_-]{16,64}$/.test(id)) id = randomState() + randomState();
+    try { localStorage.setItem(DEVICE_KEY, id); } catch (e) {}
+    try { document.cookie = DEVICE_KEY + '=' + id + '; Max-Age=63072000; Path=/; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : ''); } catch (e) {}
+    return id;
+  }
+
   var Smartbase = {
+    getDeviceId: deviceId,
     init: function (options) {
       options = options || {};
       if (!options.projectId) throw new Error('Smartbase.init needs a projectId');
@@ -47,6 +63,7 @@
       url.searchParams.set('project', config.projectId);
       url.searchParams.set('redirect_url', options.redirectUrl || cleanUrl());
       url.searchParams.set('state', state);
+      url.searchParams.set('device', deviceId());
       location.assign(url.toString());
     },
 

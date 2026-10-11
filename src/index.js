@@ -6,13 +6,28 @@ import { handleFlowApi } from './flow.js';
 import { handleGoogleAuth, handleGoogleExchange, handleProviderApi } from './google-auth.js';
 import { handleGoogleTest } from './google-test.js';
 import { handleSigninApi, brandGoogleRedirect } from './signin-page.js';
+import { handleControlsApi, handleStructureApi } from './controls-api.js';
+import { handleOpenPixel, handleUnsubscribe } from './broadcast.js';
+import { PREFIX } from './domain.js';
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // A developer's custom sign-in domain forwards https://their-domain/__smartbase/* to this platform.
+    if (url.pathname.startsWith(PREFIX + '/')) {
+      url.sbPrefix = PREFIX;
+      url.pathname = url.pathname.slice(PREFIX.length);
+    }
     const path = url.pathname;
 
     try {
+      if (path === '/api/ping') return json({ success: true, platform: 'smartbase-email' });
+      if (path.startsWith('/o/') && request.method === 'GET') return await handleOpenPixel(env, url);
+      if (path.startsWith('/unsub/') && (request.method === 'GET' || request.method === 'POST')) return await handleUnsubscribe(request, env, url);
+      if (path === '/api/v1/storage/structure') return await handleStructureApi(request, env, url);
+      if (path.startsWith('/api/controls') || path.startsWith('/api/broadcasts') || path === '/api/db-copy') {
+        return await handleControlsApi(request, env, url);
+      }
       if (path === '/api/health') {
         const row = await env.DB.prepare(
           "SELECT COUNT(*) AS tables FROM sqlite_master WHERE type = 'table' AND name NOT LIKE '_cf_%' AND name NOT LIKE 'sqlite_%'"

@@ -7,6 +7,10 @@
     "binding": "ASSETS",
     "run_worker_first": true
   },
+  "vars": {
+    // Where your Smartbase database platform lives (used for "My Smartbase database" storage)
+    "SMARTBASE_URL": "https://smart.emalawi.workers.dev"
+  },
   "d1_databases": [
     {
       "binding": "DB",

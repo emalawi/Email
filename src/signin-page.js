@@ -1,6 +1,8 @@
 import { json, fail, cleanLine } from './util.js';
 import { getDeveloper } from './session.js';
 import { escapeHtml } from './design.js';
+import { getSettings } from './settings.js';
+import { publicBase } from './domain.js';
 
 const FONTS = [
   'Arial, sans-serif',
@@ -303,7 +305,7 @@ export async function brandGoogleRedirect(response, env, url) {
 
   const html = renderSigninPage(design, {
     projectName: row.name,
-    logoUrl: await logoUrlFor(env, url.origin, projectId),
+    logoUrl: await logoUrlFor(env, publicBase(await getSettings(env, projectId), url), projectId),
     googleUrl: location,
   });
 
