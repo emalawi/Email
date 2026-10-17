@@ -9,6 +9,7 @@ import { handleSigninApi, brandGoogleRedirect } from './signin-page.js';
 import { handleControlsApi, handleStructureApi } from './controls-api.js';
 import { handleOpenPixel, handleUnsubscribe } from './broadcast.js';
 import { PREFIX } from './domain.js';
+import { handleSso, smartLink } from './sso.js';
 
 export default {
   async fetch(request, env) {
@@ -21,6 +22,8 @@ export default {
     const path = url.pathname;
 
     try {
+      if (path === '/sso') return await handleSso(request, env, url);
+      if (path === '/api/sso-info') return json({ success: true, smartUrl: smartLink(env) });
       if (path === '/api/ping') return json({ success: true, platform: 'smartbase-email' });
       if (path.startsWith('/o/') && request.method === 'GET') return await handleOpenPixel(env, url);
       if (path.startsWith('/unsub/') && (request.method === 'GET' || request.method === 'POST')) return await handleUnsubscribe(request, env, url);

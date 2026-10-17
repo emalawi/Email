@@ -12,14 +12,14 @@ import {
 } from './util.js';
 import { DEFAULT_DESIGN, sanitizeDesign } from './design.js';
 
-const SESSION_DAYS = 7;
+export const SESSION_DAYS = 7;
 const MAX_DESIGN_CHARS = 1900000;
 
-function sessionCookie(token, maxAge) {
+export function sessionCookie(token, maxAge) {
   return `sb_session=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
 }
 
-async function createSession(env, userId) {
+export async function createSession(env, userId) {
   const token = randomHex(32);
   const id = await sha256Hex(token);
   const now = new Date();
@@ -89,6 +89,11 @@ export async function handleDashboardApi(request, env, url) {
   if (method !== 'GET') {
     const origin = request.headers.get('Origin');
     if (origin && origin !== url.origin) return fail('Bad origin.', 403);
+  }
+
+  // Accounts are managed in Smartbase: this platform no longer registers or logs in anyone itself.
+  if ((path === '/api/signup' || path === '/api/login') && method === 'POST') {
+    return fail('Accounts are managed in Smartbase. Open the Email platform from your Smartbase dashboard (Auth & Email).', 403);
   }
 
   if (path === '/api/signup' && method === 'POST') {
