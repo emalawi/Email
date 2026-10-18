@@ -20,7 +20,7 @@ export async function verifyLaunchToken(token, secret, nowMs = Date.now()) {
   return c;
 }
 
-export const smartLink = (env) => (/^https:\/\//.test(env.SMARTBASE_URL || '') ? String(env.SMARTBASE_URL).replace(/\/+$/, '') : 'https://smart.emalawi.workers.dev');
+export const smartLink = (env) => (/^https:\/\//.test(env.SMARTBASE_URL || '') ? String(env.SMARTBASE_URL).replace(/\/+$/, '') : 'https://smartbase.de5.net');
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const page = (env, title, msg, status) => new Response(
   `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><body style="font-family:Arial,sans-serif;max-width:440px;margin:14vh auto;padding:0 22px;text-align:center;color:#1f2937"><h2>${esc(title)}</h2><p>${esc(msg)}</p><p><a href="${esc(smartLink(env))}" style="display:inline-block;padding:12px 22px;border-radius:9px;background:#2563eb;color:#fff;text-decoration:none">Open Smartbase</a></p></body>`,

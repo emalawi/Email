@@ -9,7 +9,7 @@
   },
   "vars": {
     // Where your Smartbase database platform lives (used for "My Smartbase database" storage)
-    "SMARTBASE_URL": "https://smart.emalawi.workers.dev"
+    "SMARTBASE_URL": "https://smartbase.de5.net"
   },
   "d1_databases": [
     {

@@ -8,7 +8,7 @@ export const TEMPLATE_SQL = `CREATE TABLE IF NOT EXISTS ${TEMPLATE_USERS} (id TE
 CREATE TABLE IF NOT EXISTS ${TEMPLATE_DEVICES} (id TEXT PRIMARY KEY, device_hash TEXT NOT NULL, user_id TEXT NOT NULL, first_seen TEXT, last_seen TEXT);`;
 export const IDENTITY_MAP = Object.fromEntries(STANDARD_FIELDS.map((f) => [f, f]));
 
-export const smartUrl = (env) => String(env.SMARTBASE_URL || 'https://smart.emalawi.workers.dev').replace(/\/+$/, '');
+export const smartUrl = (env) => String(env.SMARTBASE_URL || 'https://smartbase.de5.net').replace(/\/+$/, '');
 
 export function ident(name) {
   const s = String(name || '');
