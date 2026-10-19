@@ -20,7 +20,7 @@ export async function verifyLaunchToken(token, secret, nowMs = Date.now()) {
   return c;
 }
 
-export const smartLink = (env) => (/^https:\/\//.test(env.SMARTBASE_URL || '') ? String(env.SMARTBASE_URL).replace(/\/+$/, '') : 'https://smartbase.de5.net');
+export const smartLink = (env) => (/^https:\/\//.test(env.SMARTBASE_URL || '') ? String(env.SMARTBASE_URL).replace(/\/+$/, '') : 'https://smart.emalawi.workers.dev');
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const page = (env, title, msg, status) => new Response(
   `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><body style="font-family:Arial,sans-serif;max-width:440px;margin:14vh auto;padding:0 22px;text-align:center;color:#1f2937"><h2>${esc(title)}</h2><p>${esc(msg)}</p><p><a href="${esc(smartLink(env))}" style="display:inline-block;padding:12px 22px;border-radius:9px;background:#2563eb;color:#fff;text-decoration:none">Open Smartbase</a></p></body>`,
@@ -61,5 +61,5 @@ export async function handleSso(request, env, url) {
     if (final) userId = final.user_id;
   }
   const token = await createSession(env, userId);
-  return new Response(null, { status: 302, headers: { Location: '/', 'Set-Cookie': sessionCookie(token, SESSION_DAYS * 86400), 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
+  return new Response(null, { status: 302, headers: { Location: '/?sso=1', 'Set-Cookie': sessionCookie(token, SESSION_DAYS * 86400), 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
 }
