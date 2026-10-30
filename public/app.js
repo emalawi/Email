@@ -853,10 +853,12 @@ async function logout() {
 }
 
 async function restoreSession() {
-  if (!localStorage.getItem("smartbaseDeveloperId")) return;
   try {
     const me = await api("/api/me");
     developer = me.developer;
+    if (developer && developer.id) {
+      localStorage.setItem("smartbaseDeveloperId", developer.id);
+    }
     const data = await api("/api/projects");
     projects = data.projects || [];
     enterDashboard();

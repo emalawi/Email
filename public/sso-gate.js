@@ -24,7 +24,15 @@
     if (!info || !/^https:\/\//.test(info.smartUrl)) return;
     fetch('/api/me', { credentials: 'same-origin' }).then(function (r) {
       var fromSso = /[?&]sso=1(&|$)/.test(location.search);
-      if (r.ok) { try { sessionStorage.removeItem(KEY); } catch (e) {} if (fromSso) history.replaceState(null, '', location.pathname); return; }
+      if (r.ok) {
+        try { sessionStorage.removeItem(KEY); } catch (e) {}
+        if (fromSso) {
+          // Cookie is valid; drop ?sso=1 and reload so app.js restoreSession() opens the dashboard
+          location.replace(location.pathname);
+          return;
+        }
+        return;
+      }
       if (!fromSso && tries < 2) { try { sessionStorage.setItem(KEY, String(tries + 1)); } catch (e) {} location.replace(info.smartUrl + '/?open=email'); return; }
       apply(info.smartUrl, fromSso ? 'cookies' : 'manual');
     }).catch(function () { apply(info.smartUrl, 'manual'); });
