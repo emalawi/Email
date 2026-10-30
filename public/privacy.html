@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b0d10">
+  <title>Privacy Policy — Smartbase Email Platform</title>
+  <meta name="description" content="Privacy Policy for the Smartbase Email Platform. Learn how we collect, use, store, and protect data when you use our transactional email and sign-in services on Cloudflare.">
+  <meta name="robots" content="index, follow">
+  <meta name="author" content="Smartbase">
+  <link rel="canonical" href="/privacy.html">
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Privacy Policy — Smartbase Email Platform">
+  <meta property="og:description" content="How Smartbase collects, uses, and protects data for transactional email and sign-in services.">
+  <meta property="og:url" content="/privacy.html">
+  <!-- Structured data for AI / search engines -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "Privacy Policy",
+    "description": "Privacy Policy for the Smartbase Email Platform.",
+    "publisher": {
+      "@type": "Organization",
+      "name": "Smartbase"
+    },
+    "dateModified": "2026-10-30"
+  }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .legal-page{min-height:100vh;background:var(--bg);color:#e8eaed}
+    .legal-nav{display:flex;align-items:center;justify-content:space-between;padding:18px 6vw;border-bottom:1px solid #1e2430;position:sticky;top:0;background:rgba(8,10,13,.92);backdrop-filter:blur(12px);z-index:10}
+    .legal-nav a{color:#a9a1ff;text-decoration:none;font-size:13px;font-weight:600}
+    .legal-nav a:hover{color:#fff}
+    .legal-nav .nav-links{display:flex;gap:22px;flex-wrap:wrap}
+    .legal-wrap{max-width:820px;margin:0 auto;padding:48px 6vw 80px}
+    .legal-wrap h1{font:600 36px/1.15 var(--display);letter-spacing:-.04em;margin:0 0 10px}
+    .legal-wrap .updated{color:#7a8290;font-size:13px;margin-bottom:36px}
+    .legal-wrap h2{font:600 20px var(--display);margin:36px 0 12px;color:#fff}
+    .legal-wrap h3{font:600 15px var(--display);margin:22px 0 8px;color:#c9c4ff}
+    .legal-wrap p,.legal-wrap li{color:#a6acb7;line-height:1.75;font-size:15px}
+    .legal-wrap ul{padding-left:20px;margin:10px 0 18px}
+    .legal-wrap li{margin-bottom:6px}
+    .legal-wrap a{color:#8b7fff}
+    .legal-footer{border-top:1px solid #1e2430;padding:28px 6vw;text-align:center;color:#646c78;font-size:12px}
+    .legal-footer a{color:#8b7fff;text-decoration:none;margin:0 10px}
+    @media(max-width:560px){.legal-wrap h1{font-size:28px}.legal-nav .nav-links{gap:14px;font-size:12px}}
+  </style>
+</head>
+<body>
+  <div class="legal-page">
+    <nav class="legal-nav" aria-label="Legal navigation">
+      <a href="/" class="auth-brand" style="text-decoration:none;color:#fff">
+        <div class="brand-mark">S</div>
+        <span>Smartbase</span>
+      </a>
+      <div class="nav-links">
+        <a href="/docs.html">Documentation</a>
+        <a href="/privacy.html" aria-current="page">Privacy</a>
+        <a href="/terms.html">Terms</a>
+        <a href="/">Home</a>
+      </div>
+    </nav>
+
+    <article class="legal-wrap">
+      <h1>Privacy Policy</h1>
+      <p class="updated">Last updated: 30 October 2026</p>
+
+      <p>This Privacy Policy explains how the <strong>Smartbase Email Platform</strong> (“Smartbase”, “we”, “us”, or “our”) collects, uses, stores, and protects information when you use our services hosted on Cloudflare Workers and related infrastructure.</p>
+
+      <h2>1. Who we are</h2>
+      <p>Smartbase provides transactional email infrastructure, branded verification emails, sign-in options (including Google), project API keys, account-control features, database copy tools, and email broadcasts. The platform runs primarily on Cloudflare (Workers, D1, and static assets).</p>
+
+      <h2>2. Information we collect</h2>
+      <h3>Account and developer data</h3>
+      <ul>
+        <li>Name and email address when you create or access a developer account (often via Smartbase / SSO).</li>
+        <li>Session tokens and device identifiers used for login and optional “one account, one device” controls.</li>
+        <li>Project names, website URLs, API key prefixes, and email design settings you configure.</li>
+      </ul>
+      <h3>End-user and delivery data</h3>
+      <ul>
+        <li>Email addresses of recipients you send verification or broadcast emails to.</li>
+        <li>Delivery-related events such as sent status, open tracking (via pixel), and unsubscribe actions when those features are enabled.</li>
+        <li>Device identifiers submitted by the client SDK when account-control (monitor or enforce) mode is active.</li>
+      </ul>
+      <h3>Technical data</h3>
+      <ul>
+        <li>Request logs, IP addresses, user-agent strings, and error data processed by Cloudflare and our Workers for security, reliability, and rate limiting.</li>
+        <li>Storage keys and configuration you supply when connecting your own Smartbase database or custom server gateway.</li>
+      </ul>
+
+      <h2>3. How we use information</h2>
+      <ul>
+        <li>To provide, operate, and improve the Email Platform (sign-in, templates, API, broadcasts, controls).</li>
+        <li>To authenticate developers and enforce project ownership and device limits where configured.</li>
+        <li>To send emails from the platform Gmail account or configured providers on your behalf.</li>
+        <li>To track broadcast open and unsubscribe events when you use those features.</li>
+        <li>To maintain security, prevent abuse, and comply with applicable law.</li>
+      </ul>
+
+      <h2>4. Legal bases (where applicable)</h2>
+      <p>Where GDPR or similar laws apply, we process data based on: performance of a contract (providing the service you requested), legitimate interests (security, product improvement, abuse prevention), and consent (for example optional tracking or marketing-related features you enable).</p>
+
+      <h2>5. Storage and retention</h2>
+      <ul>
+        <li>Primary data is stored in Cloudflare D1 (and related Cloudflare services) bound to this Worker.</li>
+        <li>If you choose “My Smartbase database” or a custom gateway, user records are written according to the keys and endpoints you configure; those systems are under your control.</li>
+        <li>Sessions typically expire after a limited period (e.g. 7 days).</li>
+        <li>Broadcast and open-tracking data is retained as needed for the feature and applicable limits (e.g. daily send caps).</li>
+        <li>You may request deletion of account-related data subject to legal and operational requirements.</li>
+      </ul>
+
+      <h2>6. Sharing of information</h2>
+      <p>We do not sell personal data. We may share information with:</p>
+      <ul>
+        <li><strong>Cloudflare</strong> — as the infrastructure provider that processes requests and stores data in your account’s bindings.</li>
+        <li><strong>Google</strong> — when Google sign-in or Gmail sending is used (subject to Google’s terms and your OAuth configuration).</li>
+        <li><strong>Your own systems</strong> — when you connect a Smartbase database or signed gateway for user storage.</li>
+        <li><strong>Service providers</strong> necessary to operate the platform, under appropriate safeguards.</li>
+        <li>Authorities when required by law or to protect rights and safety.</li>
+      </ul>
+
+      <h2>7. International transfers</h2>
+      <p>Cloudflare and related services may process data in multiple regions. By using the platform you acknowledge that data may be transferred and processed outside your country, subject to applicable safeguards.</p>
+
+      <h2>8. Security</h2>
+      <p>We use industry-standard measures including HTTPS, HttpOnly session cookies, hashed credentials and API keys where applicable, origin checks on sensitive API routes, and Cloudflare’s security features. No method of transmission or storage is 100% secure; you are responsible for protecting your API keys and secrets.</p>
+
+      <h2>9. Your rights</h2>
+      <p>Depending on your location, you may have rights to access, correct, delete, or restrict processing of your personal data, and to object or withdraw consent where processing is based on consent. To exercise these rights, contact us using the details below. You may also have the right to lodge a complaint with a supervisory authority.</p>
+
+      <h2>10. Cookies and similar technologies</h2>
+      <p>We use essential session cookies (e.g. <code>sb_session</code>) for authentication. Tracking pixels used for broadcast open rates are controlled by the features you enable. You can manage browser cookies through your browser settings.</p>
+
+      <h2>11. Children’s privacy</h2>
+      <p>The service is intended for developers and businesses. We do not knowingly collect personal data from children under 16 (or the age required in your jurisdiction). If you believe we have collected such data, contact us so we can delete it.</p>
+
+      <h2>12. Changes to this policy</h2>
+      <p>We may update this Privacy Policy from time to time. The “Last updated” date at the top will change when we do. Continued use of the service after changes constitutes acceptance of the revised policy where permitted by law.</p>
+
+      <h2>13. Contact</h2>
+      <p>For privacy-related questions or requests, contact the platform operator through your Smartbase dashboard or the support channel associated with your deployment.</p>
+    </article>
+
+    <footer class="legal-footer">
+      <a href="/">Home</a>
+      <a href="/docs.html">Documentation</a>
+      <a href="/privacy.html">Privacy Policy</a>
+      <a href="/terms.html">Terms &amp; Conditions</a>
+      <p style="margin-top:14px">© 2026 Smartbase Email Platform. All rights reserved.</p>
+    </footer>
+  </div>
+</body>
+</html>
